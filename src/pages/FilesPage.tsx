@@ -1138,11 +1138,13 @@ const glassChip: React.CSSProperties = {
   boxShadow: "inset 0 1px 0 hsl(0 0% 100% / 0.15)",
 };
 
-const handleAttach = () => {
-  // Hook up media attachment in a future pass — keeps the + button visually present per iOS 26 spec.
-  const inp = document.createElement("input");
-  inp.type = "file"; inp.accept = "image/*,application/pdf,text/*";
-  inp.click();
+/* Attach menu — chat-style sheet for photos / camera / files / tools */
+type AttachedFile = { id: string; name: string; size: number; type: string; url: string; file: File };
+
+const formatSize = (n: number) => {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 };
 
 /* ─────────────── Main hero input (with templates + options popover) ─────────────── */
