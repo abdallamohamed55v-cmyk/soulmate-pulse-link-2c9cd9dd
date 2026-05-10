@@ -37,11 +37,18 @@ export const LANDING_TEMPLATES: LandingTemplate[] = [
   t("veloured", "Veloured", "Premium minimal modern landing", "remix-veloured-modern-landing-"),
   t("velammal", "Velammal", "Editorial corporate / institutional", "remix-velammal-engineering-col"),
   t("yash-verma", "Yash Verma", "Interactive personal brand", "remix-yash-verma-interactive-g"),
-  t("premium-3d", "Premium 3D", "Premium 3D digital journey", "remix-premium-3d-digital-journ"),
-  t("watch-3d", "Watch 3D", "Real-time 3D product showcase", "remix-real-time-3d-watch-websi"),
-  t("piano-3d", "Piano 3D", "Interactive 3D product", "remix-interactive-3d-piano-key"),
   t("forma", "Forma", "Ergonomic premium product page", "remix-forma-ergonomic-sofa"),
   t("abstract-vector", "Abstract Vector", "Abstract vector neon design", "remix-remix-abstract-vector-ne"),
+  // ─── New templates ───
+  t("portfolio-3d", "3D Portfolio", "Interactive 3D portfolio website", "remix-3d-portfolio-website-bui"),
+  t("documentary", "Documentary", "Documentary research storytelling", "remix-documentary-research-and"),
+  t("fashion-ice", "Fashion Ice", "Editorial fashion with ice cubes", "remix-fashion-ice-cubes"),
+  t("digital-marketplace", "Digital Marketplace", "Interactive 3D digital marketplace", "remix-interactive-3d-digital-m"),
+  t("blob-landing", "Blob Landing", "Soft 3D blob landing page", "remix-landing-page-blobs"),
+  t("landscape", "Landscape", "Architectural landscape design", "remix-landscape-design"),
+  t("modern-ai", "Modern AI", "Modern visible AI website", "remix-modern-ai-visible-websit"),
+  t("noodles", "Noodles Splash", "Playful noodles splash page", "remix-noodles-splash-page"),
+  t("science-lab", "Science Lab", "Interactive science lab website", "remix-science-lab-website-with"),
 ];
 
 export const DEFAULT_LANDING_TEMPLATE = LANDING_TEMPLATES[0].id;
