@@ -1638,6 +1638,27 @@ export type Database = {
         }
         Relationships: []
       }
+      premium_usage: {
+        Row: {
+          id: string
+          template_id: string | null
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          template_id?: string | null
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          template_id?: string | null
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       processed_orders: {
         Row: {
           created_at: string
@@ -2720,6 +2741,33 @@ export type Database = {
           name?: string
           preferred_model?: string | null
           triggers?: string[]
+        }
+        Relationships: []
+      }
+      template_images: {
+        Row: {
+          created_at: string
+          image_url: string
+          source: string
+          template_id: string
+          updated_at: string
+          uploaded_by_chat_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          image_url: string
+          source?: string
+          template_id: string
+          updated_at?: string
+          uploaded_by_chat_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          image_url?: string
+          source?: string
+          template_id?: string
+          updated_at?: string
+          uploaded_by_chat_id?: number | null
         }
         Relationships: []
       }
