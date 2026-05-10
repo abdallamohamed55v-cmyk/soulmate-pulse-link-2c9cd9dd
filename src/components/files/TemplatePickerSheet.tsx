@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Check, Sparkles, LayoutGrid } from "lucide-react";
-import { useMemo, useState, type CSSProperties } from "react";
+import { ChevronLeft, Check } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 export type PickerCategory = "premium" | "standard";
 
@@ -23,10 +23,29 @@ interface Props {
   showCategoryTabs?: boolean;
 }
 
+/* Deterministic gradient generator from a string id. */
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function gradientFor(id: string): string {
+  const h = hashString(id);
+  const h1 = h % 360;
+  const h2 = (h1 + 40 + (h % 80)) % 360;
+  const h3 = (h1 + 200 + ((h >> 3) % 60)) % 360;
+  const angle = (h >> 5) % 360;
+  return `linear-gradient(${angle}deg, hsl(${h1} 80% 18%) 0%, hsl(${h2} 75% 38%) 48%, hsl(${h3} 85% 60%) 100%)`;
+}
+
 const TemplatePickerSheet = ({
   open, templates, selectedId, onSelect, onClose, showCategoryTabs,
 }: Props) => {
   const [tab, setTab] = useState<PickerCategory>("premium");
+  const [pendingId, setPendingId] = useState<string | undefined>(selectedId);
+
+  useEffect(() => { if (open) setPendingId(selectedId); }, [open, selectedId]);
 
   const visible = useMemo(() => {
     if (!showCategoryTabs) return templates;
@@ -34,27 +53,12 @@ const TemplatePickerSheet = ({
     return filtered.length ? filtered : templates;
   }, [templates, tab, showCategoryTabs]);
 
-  const counts = useMemo(() => ({
-    premium: templates.filter((t) => t.category === "premium").length,
-    standard: templates.filter((t) => t.category === "standard").length,
-  }), [templates]);
+  const fallbackStyle = (id: string): CSSProperties => ({ background: gradientFor(id) });
 
-  const getFallbackStyle = (id: string): CSSProperties => {
-    const palettes: Record<string, string> = {
-      "megsy-3d-portfolio": "linear-gradient(135deg,#0b0118 0%,#5b21b6 48%,#22d3ee 100%)",
-      "megsy-graphic": "linear-gradient(135deg,#3b0764 0%,#ec4899 48%,#fb923c 100%)",
-      "megsy-spider": "linear-gradient(135deg,#7f1d1d 0%,#1e3a8a 48%,#fde68a 100%)",
-      "portfolio-3d": "linear-gradient(135deg,#08080c 0%,#28135f 48%,#65f4ff 100%)",
-      documentary: "linear-gradient(135deg,#161412 0%,#6d5540 48%,#e6d3b1 100%)",
-      "fashion-ice": "linear-gradient(135deg,#eef8ff 0%,#9ed6ef 48%,#18212b 100%)",
-      "digital-marketplace": "linear-gradient(135deg,#0b1020 0%,#174ea6 48%,#5cffc8 100%)",
-      "blob-landing": "linear-gradient(135deg,#fff1f2 0%,#f59e0b 48%,#7c3aed 100%)",
-      landscape: "linear-gradient(135deg,#10291e 0%,#77935d 48%,#e8d6a0 100%)",
-      "modern-ai": "linear-gradient(135deg,#06111f 0%,#2563eb 48%,#dbeafe 100%)",
-      noodles: "linear-gradient(135deg,#fff3d6 0%,#f97316 48%,#9a3412 100%)",
-      "science-lab": "linear-gradient(135deg,#06130f 0%,#10b981 48%,#d9f99d 100%)",
-    };
-    return { background: palettes[id] || "linear-gradient(135deg,hsl(var(--muted)),hsl(var(--accent)))" };
+  const confirm = () => {
+    const tpl = templates.find((x) => x.id === pendingId);
+    if (tpl) onSelect(tpl);
+    onClose();
   };
 
   return (
@@ -83,27 +87,23 @@ const TemplatePickerSheet = ({
               <div className="mt-2 flex items-center gap-1 p-1 rounded-2xl bg-muted/60 max-w-md mx-auto">
                 <button
                   onClick={() => setTab("premium")}
-                  className={`flex-1 h-10 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+                  className={`flex-1 h-10 rounded-xl text-xs font-semibold transition ${
                     tab === "premium"
                       ? "bg-foreground text-background shadow"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
                   Premium
-                  <span className="text-[10px] opacity-70">({counts.premium})</span>
                 </button>
                 <button
                   onClick={() => setTab("standard")}
-                  className={`flex-1 h-10 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+                  className={`flex-1 h-10 rounded-xl text-xs font-semibold transition ${
                     tab === "standard"
                       ? "bg-foreground text-background shadow"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <LayoutGrid className="h-3.5 w-3.5" />
                   Standard
-                  <span className="text-[10px] opacity-70">({counts.standard})</span>
                 </button>
               </div>
             )}
@@ -112,41 +112,28 @@ const TemplatePickerSheet = ({
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
             <div className="grid grid-cols-2 gap-4 max-w-3xl mx-auto">
               {visible.map((t) => {
-                const active = selectedId === t.id;
+                const active = pendingId === t.id;
                 return (
                   <button
                     key={t.id}
-                    onClick={() => { onSelect(t); onClose(); }}
+                    onClick={() => setPendingId(t.id)}
                     className={`group relative rounded-2xl overflow-hidden border-2 text-left transition-all bg-card ${
                       active ? "border-primary ring-2 ring-primary/30" : "border-border/50 hover:border-foreground/30"
                     }`}
                   >
-                    {t.category === "premium" && (
-                      <span className="absolute top-2 right-2 z-20 text-[10px] font-bold px-2 py-0.5 rounded-full bg-foreground text-background flex items-center gap-1 shadow">
-                        <Sparkles className="h-2.5 w-2.5" />
-                        Premium
-                      </span>
-                    )}
-                    <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-muted/40 to-muted overflow-hidden">
-                      <div
-                        className="absolute inset-0 flex items-end p-3 text-xs font-black uppercase tracking-[0.22em] text-white/90"
-                        style={getFallbackStyle(t.id)}
-                      >
-                        <span className="drop-shadow-lg">{t.fallbackLabel || t.name}</span>
-                      </div>
+                    <div className="relative w-full aspect-[4/3] overflow-hidden" style={fallbackStyle(t.id)}>
                       {t.preview ? (
                         <img
                           src={t.preview}
                           alt={t.name}
                           loading="lazy"
-                          className="relative z-10 w-full h-full object-cover"
-                          onError={(e) => {
-                            const img = e.currentTarget as HTMLImageElement;
-                            img.style.display = "none";
-                            img.parentElement?.classList.remove("bg-gradient-to-br", "from-muted/40", "to-muted");
-                          }}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                         />
                       ) : null}
+                      <div className="absolute inset-0 flex items-end p-3 text-xs font-black uppercase tracking-[0.22em] text-white/95 bg-gradient-to-t from-black/40 to-transparent">
+                        <span className="drop-shadow-lg">{t.fallbackLabel || t.name}</span>
+                      </div>
                     </div>
                     <div className="px-3 py-2.5 flex items-center justify-between">
                       <span className="text-sm font-semibold truncate">{t.name}</span>
@@ -168,7 +155,7 @@ const TemplatePickerSheet = ({
               className="flex-1 h-12 rounded-2xl bg-muted text-foreground font-semibold"
             >Cancel</button>
             <button
-              onClick={onClose}
+              onClick={confirm}
               className="flex-1 h-12 rounded-2xl bg-primary text-primary-foreground font-semibold"
             >Confirm</button>
           </div>
