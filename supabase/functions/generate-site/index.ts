@@ -154,31 +154,23 @@ async function fetchImagesFromPexels(query: string): Promise<Array<{ url: string
 async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
   const original = buildImageQuery(prompt);
   const isArabic = /[\u0600-\u06FF]/.test(prompt);
-  console.log("[images] original query:", original, "isArabic:", isArabic, "FC_KEY:", !!Deno.env.get("FIRECRAWL_API_KEY"), "PX_KEY:", !!Deno.env.get("PEXELS_API_KEY"));
   const [fcOriginal, englishKeywords] = await Promise.all([
     fetchImagesFromFirecrawl(original),
     isArabic ? translateToImageKeywords(prompt) : Promise.resolve(""),
   ]);
-  console.log("[images] firecrawl(original) =>", fcOriginal.length, "english keywords =>", englishKeywords);
   let collected = fcOriginal;
   if (collected.length < 10 && englishKeywords) {
     const fcEn = await fetchImagesFromFirecrawl(englishKeywords);
-    console.log("[images] firecrawl(english) =>", fcEn.length);
     collected = [...collected, ...fcEn.filter((p) => !collected.find((c) => c.url === p.url))];
   }
-  if (collected.length >= 10) {
-    console.log("[images] returning firecrawl-only:", collected.length, "first:", collected[0]?.url);
-    return collected.slice(0, 18);
-  }
+  if (collected.length >= 10) return collected.slice(0, 18);
   const pxQuery = englishKeywords || original;
   const px = await fetchImagesFromPexels(pxQuery);
-  console.log("[images] pexels =>", px.length);
   const merged = [...collected, ...px.filter((p) => !collected.find((c) => c.url === p.url))];
   while (merged.length < 14) {
     const seed = Math.floor(Math.random() * 100000) + merged.length;
     merged.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: pxQuery });
   }
-  console.log("[images] final merged =>", merged.length, "first:", merged[0]?.url);
   return merged.slice(0, 18);
 }
 
