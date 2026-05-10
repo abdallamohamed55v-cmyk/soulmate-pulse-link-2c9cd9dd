@@ -34,20 +34,21 @@ ABSOLUTE OUTPUT RULES (violation = failure)
 6. ❌ NO ICON FONTS / NO <i class="fa-..."> / NO inline SVG icons / NO lucide / NO bootstrap-icons / NO emoji-as-icon. If the template ships icons, replace them with TYPE (numbers, bold characters, or remove entirely).
 
 7. ✅ IMAGES ARE MANDATORY — use 8 to 14 real photographic images across the deck.
-   Use ONLY this exact URL pattern (it never 404s):
-        https://images.unsplash.com/photo-{id}?auto=format&fit=crop&w=1600&q=80
-   If you don't know a real photo id, use the search proxy instead:
-        https://source.unsplash.com/1600x900/?<keyword1>,<keyword2>
-   Each image MUST include a meaningful alt="..." and a fixed aspect ratio container (e.g. aspect-[16/9], aspect-square) so layout never shifts during load.
+   The user message includes APPROVED IMAGE URLS. Use those exact URLs first; they are preselected for the brief and already checked.
+   Do NOT invent random Unsplash photo IDs. If approved URLs are not enough, use only this fallback pattern with topic keywords:
+        https://source.unsplash.com/1600x900/?<specific-topic>,<specific-context>
+   Every image must be directly relevant to the USER BRIEF, not generic decoration.
+   Each image MUST include a meaningful alt="..." and a fixed aspect-ratio wrapper using CSS (aspect-ratio: 16/9, 4/3, 1/1) so layout never shifts.
    Distribute images: 1 hero image, 4-6 section/divider images, 2-4 grid images, 1-2 closing images.
-   NEVER ship a slide deck with fewer than 6 working images.
+   NEVER ship a slide deck with fewer than 8 working images.
 
-8. CONTENT VOLUME — this MUST feel like a 12-20 slide deck:
-   - 12 to 20 distinct sections.
-   - Each section has: a giant bold headline, a sub-headline, and 60-200 words of body copy or a structured pattern from the library below.
+8. CONTENT VOLUME — this MUST feel like a polished 12-20 slide deck:
+   - Use exactly the requested slide count if provided, otherwise 12 to 16 distinct sections.
+   - Each section must have: a giant bold headline, a sub-headline, and 90-220 words of body copy or a structured pattern from the library below.
    - Use BIG type for headlines (text-6xl to text-9xl on desktop).
    - Generous section padding (py-32 lg:py-48), generous gaps.
    - The page should be LONG — minimum 8000px tall on desktop.
+   - The ordering must feel intentional: title → context → problem → evidence → visual proof → framework → timeline → comparisons → recommendations → closing.
 
 9. LANGUAGE — match the user brief:
    - Arabic brief → set <html dir="rtl" lang="ar"> and use Arabic copy throughout. Use Cairo / Tajawal / IBM Plex Sans Arabic font if not already present.
@@ -56,12 +57,15 @@ ABSOLUTE OUTPUT RULES (violation = failure)
 10. STRUCTURE — vary heavily. NEVER repeat the same pattern twice in a row. Pull from the pattern library below and mix them. Aim to use AT LEAST 8 different patterns across the deck.
 
 11. DENSITY — every section must have substantive, factual-feeling content. No "Lorem ipsum". No empty placeholder boxes. Never write "TBD" or "Coming soon". If a fact isn't in the brief, invent realistic-looking content that fits the topic (numbers, dates, names, places).
+    Never create thin sections with only a title and one sentence. Cards, tables, lists, timelines, and captions must be filled with specific text.
 
 12. STATS / NUMBERS — sprinkle large number callouts everywhere. Big numbers (text-8xl) sell the deck.
 
 13. NO buttons, NO forms, NO interactive widgets that suggest the user can take an action. This is read-only content.
 
 14. Return the FULL modified HTML document, ready to render in an iframe sandbox.
+
+15. TEMPLATE LOCK — The chosen template identity is provided as TEMPLATE ID/FOLDER and TEMPLATE NAME. Preserve that template's visual character exactly. Do not borrow layout, colors, or motion from any other template.
 `;
 
 
