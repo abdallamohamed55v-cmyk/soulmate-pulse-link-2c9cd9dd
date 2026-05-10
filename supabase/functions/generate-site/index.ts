@@ -339,7 +339,7 @@ Deno.serve(async (req) => {
     // Compress the template HTML to ~9KB of visual DNA so we don't ship
     // 100KB+ to the model. Combined with smaller output target this keeps
     // total request well under 30K tokens (vs 100K+ before).
-    const templateHtml = isSlides ? compressTemplate(rawTemplateHtml, 9000) : rawTemplateHtml;
+    const templateHtml = isSlides ? compressTemplate(rawTemplateHtml, 3500) : rawTemplateHtml;
 
     // FREE strong model from OpenRouter (1M ctx, no per-token cost).
     // Falls back automatically inside the model chain on the gateway.
