@@ -650,7 +650,13 @@ const FilesPage = () => {
         );
         const title = prompt.slice(0, 80);
         const thumb = await captureThumb(out.html, `file-${convId || out.id}`);
-        const summary = `Created "${title}"`;
+        const wordCount = (out.html || "").replace(/<[^>]+>/g, " ").trim().split(/\s+/).length;
+        const summary = await aiSummary({
+          kind: selectedKind, title, prompt,
+          templateName: selectedTemplate?.name || "",
+          wordCount,
+          fallback: `Created "${title}"`,
+        });
         setMessages(prev => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
