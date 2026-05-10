@@ -217,7 +217,11 @@ function compressTemplate(html: string, maxChars = 3500): string {
 function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: string }>, imageQuery: string): string {
   let out = html.trim();
   if (!/^\s*<!doctype/i.test(out) && !/^\s*<html/i.test(out)) out = `<!DOCTYPE html>\n${out}`;
-
+  // If model never opened a <body> (e.g. drowned in <style>), append an empty body so the
+  // gallery + section fallbacks below have a place to inject content.
+  if (!/<body\b/i.test(out)) out = out + "\n<body></body>";
+  if (!/<\/body>/i.test(out)) out = out + "\n</body>";
+  if (!/<\/html>/i.test(out)) out = out + "\n</html>";
   out = out.replace(/<header\b[\s\S]*?<\/header>/gi, "");
   out = out.replace(/<nav\b[\s\S]*?<\/nav>/gi, "");
   out = out.replace(/<footer\b[\s\S]*?<\/footer>/gi, "");
