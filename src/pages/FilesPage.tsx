@@ -8,6 +8,7 @@ import AppLayout from "@/layouts/AppLayout";
 import ScaledHtmlPreview from "@/components/files/ScaledHtmlPreview";
 import TemplatePickerSheet, { type PickerTemplate } from "@/components/files/TemplatePickerSheet";
 import MegsyStar from "@/components/files/MegsyStar";
+import ChatPlusSheet from "@/components/chat/ChatPlusSheet";
 import { LANDING_TEMPLATES, DEFAULT_LANDING_TEMPLATE, findLandingTemplate } from "@/lib/landingTemplates";
 import {
   Menu, ArrowUp, ChevronLeft, Eye, Download,
