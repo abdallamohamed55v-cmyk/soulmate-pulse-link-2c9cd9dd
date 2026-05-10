@@ -12,7 +12,9 @@ import { LANDING_TEMPLATES, DEFAULT_LANDING_TEMPLATE, findLandingTemplate } from
 import {
   Menu, ArrowUp, ChevronLeft, Eye, Download,
   Plus, LayoutTemplate, SlidersHorizontal, Square,
+  Image as ImageIcon, Camera, Paperclip, Wand2, X, FileText,
 } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 const DDS_BASE = "https://docs-design-studio.lovable.app";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
