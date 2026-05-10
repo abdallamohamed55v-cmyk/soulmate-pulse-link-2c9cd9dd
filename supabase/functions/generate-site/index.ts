@@ -267,10 +267,10 @@ Deno.serve(async (req) => {
     // Falls back automatically inside the model chain on the gateway.
     // Cheap & strong: Gemini 2.5 Flash Lite (~$0.10/M output, 1M ctx).
     const model: string = body?.model || "google/gemini-2.5-flash-lite";
-    const requestedSlideCount = Math.max(8, Math.min(20, Number(body?.slideCount) || 12));
-    const requestedDepth = Math.max(1, Math.min(5, Number(body?.contentDepth) || 3));
+    const requestedSlideCount = Math.max(12, Math.min(20, Number(body?.slideCount) || 14));
+    const requestedDepth = Math.max(3, Math.min(5, Number(body?.contentDepth) || 4));
     const maxOutputTokens = isSlides
-      ? Math.min(28000, Math.max(16000, requestedSlideCount * (900 + requestedDepth * 220)))
+      ? Math.min(48000, Math.max(28000, requestedSlideCount * (1400 + requestedDepth * 320)))
       : 9000;
     if (!prompt) throw new Error("prompt is required");
 
