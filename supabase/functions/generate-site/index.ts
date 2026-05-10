@@ -94,44 +94,63 @@ function buildImageQuery(prompt: string): string {
   return (base || "professional editorial documentary").slice(0, 180);
 }
 
-async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
-  const apiKey = Deno.env.get("PEXELS_API_KEY");
-  const baseQuery = buildImageQuery(prompt);
-  const queries = Array.from(new Set([
-    baseQuery,
-    baseQuery.split(" ").slice(0, 2).join(" "),
-    baseQuery.split(" ").slice(-2).join(" "),
-    `${baseQuery} editorial`,
-  ].filter(Boolean)));
-
-  const collected: Array<{ url: string; alt: string }> = [];
-  if (apiKey) {
-    for (const q of queries) {
-      try {
-        const url = new URL("https://api.pexels.com/v1/search");
-        url.searchParams.set("query", q);
-        url.searchParams.set("per_page", "15");
-        url.searchParams.set("orientation", "landscape");
-        const resp = await fetch(url.toString(), { headers: { Authorization: apiKey } });
-        if (!resp.ok) continue;
-        const data = await resp.json();
-        for (const p of (data?.photos || []) as any[]) {
-          const url = p?.src?.large2x || p?.src?.large || p?.src?.original;
-          if (url && !collected.find((c) => c.url === url)) {
-            collected.push({ url, alt: p?.alt || q });
-          }
-        }
-        if (collected.length >= 18) break;
-      } catch { /* skip */ }
+async function fetchImagesFromFirecrawl(query: string): Promise<Array<{ url: string; alt: string }>> {
+  const key = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!key) return [];
+  try {
+    const resp = await fetch("https://api.firecrawl.dev/v2/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: `${query} high resolution photo`, limit: 18, sources: ["images"] }),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    const items = (data?.data?.images || data?.images || data?.data || []) as any[];
+    const collected: Array<{ url: string; alt: string }> = [];
+    for (const it of items) {
+      const url = it?.imageUrl || it?.url || it?.src;
+      if (url && /^https?:\/\//.test(url) && !collected.find((c) => c.url === url)) {
+        collected.push({ url, alt: it?.title || it?.alt || query });
+      }
     }
+    return collected.slice(0, 18);
+  } catch {
+    return [];
   }
+}
 
-  // Always-working fallback (picsum.photos is stable; source.unsplash.com is broken).
-  while (collected.length < 14) {
-    const seed = Math.floor(Math.random() * 100000) + collected.length;
-    collected.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: baseQuery });
+async function fetchImagesFromPexels(query: string): Promise<Array<{ url: string; alt: string }>> {
+  const apiKey = Deno.env.get("PEXELS_API_KEY");
+  if (!apiKey) return [];
+  try {
+    const url = new URL("https://api.pexels.com/v1/search");
+    url.searchParams.set("query", query);
+    url.searchParams.set("per_page", "18");
+    url.searchParams.set("orientation", "landscape");
+    const resp = await fetch(url.toString(), { headers: { Authorization: apiKey } });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return ((data?.photos || []) as any[]).map((p) => ({
+      url: p?.src?.large2x || p?.src?.large || p?.src?.original,
+      alt: p?.alt || query,
+    })).filter((p) => p.url).slice(0, 18);
+  } catch {
+    return [];
   }
-  return collected.slice(0, 18);
+}
+
+async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
+  const baseQuery = buildImageQuery(prompt);
+  // Prefer Firecrawl (live web search), fall back to Pexels, then picsum.
+  const fc = await fetchImagesFromFirecrawl(baseQuery);
+  if (fc.length >= 8) return fc;
+  const px = await fetchImagesFromPexels(baseQuery);
+  const merged = [...fc, ...px.filter((p) => !fc.find((c) => c.url === p.url))];
+  while (merged.length < 14) {
+    const seed = Math.floor(Math.random() * 100000) + merged.length;
+    merged.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: baseQuery });
+  }
+  return merged.slice(0, 18);
 }
 
 /**
