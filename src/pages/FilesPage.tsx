@@ -834,7 +834,7 @@ const FilesPage = () => {
                               {m.report && m.report.length > 1 && (
                                 <ul className="pl-1 space-y-0.5 text-xs text-muted-foreground">
                                   {m.report.slice(0, -1).slice(-3).map((s, idx) => (
-                                    <li key={idx} className="truncate">• {s}</li>
+                                    <li key={idx} className="truncate font-semibold">{s}</li>
                                   ))}
                                 </ul>
                               )}
