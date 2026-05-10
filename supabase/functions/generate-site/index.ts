@@ -188,21 +188,30 @@ async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt:
  * a small body sample so the model can mimic the design system, then it
  * generates fresh long-form content from scratch.
  */
-function compressTemplate(html: string, maxChars = 9000): string {
+function compressTemplate(html: string, maxChars = 3500): string {
   if (!html) return "";
-  if (html.length <= maxChars) return html;
 
-  const headMatch = html.match(/<head[^>]*>[\s\S]*?<\/head>/i);
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  const head = headMatch ? headMatch[0] : "";
-  const bodyOpen = (html.match(/<body[^>]*>/i) || [""])[0] || "<body>";
-  const bodyInner = bodyMatch ? bodyMatch[1] : html;
+  // Extract Google Fonts <link> tags (cheap, high-signal).
+  const fontLinks = (html.match(/<link[^>]*fonts\.googleapis[^>]*>/gi) || []).join("\n");
 
-  // Take just the first ~3500 chars of body (likely hero + first section).
-  const bodySample = bodyInner.slice(0, Math.max(2000, maxChars - head.length - 400));
-  let out = `${head}\n${bodyOpen}\n${bodySample}\n<!-- ...content omitted: model must expand into 12-20 sections... -->\n</body></html>`;
-  if (out.length > maxChars) out = out.slice(0, maxChars) + "\n<!-- truncated -->";
-  return out;
+  // Extract CSS custom properties (color tokens, radii) and body font rules.
+  const styleBlocks = html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || [];
+  const allCss = styleBlocks.map((s) => s.replace(/<\/?style[^>]*>/gi, "")).join("\n");
+  const rootVars = (allCss.match(/:root\s*\{[\s\S]*?\}/g) || []).join("\n");
+  const bodyRules = (allCss.match(/(?:^|[^.\w-])body\s*\{[\s\S]*?\}/g) || []).join("\n");
+  const fontFaceRules = (allCss.match(/@font-face\s*\{[\s\S]*?\}/g) || []).join("\n");
+
+  const dna = [
+    "<!-- TEMPLATE VISUAL DNA (color tokens + fonts only — recreate sections from scratch using these) -->",
+    fontLinks,
+    "<style>",
+    fontFaceRules,
+    rootVars,
+    bodyRules,
+    "</style>",
+  ].filter(Boolean).join("\n").slice(0, maxChars);
+
+  return dna || html.slice(0, maxChars);
 }
 
 function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: string }>, imageQuery: string): string {
