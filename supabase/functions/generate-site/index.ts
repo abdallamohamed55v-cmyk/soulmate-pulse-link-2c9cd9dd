@@ -232,6 +232,11 @@ Deno.serve(async (req) => {
     // Falls back automatically inside the model chain on the gateway.
     // Cheap & strong: Gemini 2.5 Flash Lite (~$0.10/M output, 1M ctx).
     const model: string = body?.model || "google/gemini-2.5-flash-lite";
+    const requestedSlideCount = Math.max(8, Math.min(20, Number(body?.slideCount) || 12));
+    const requestedDepth = Math.max(1, Math.min(5, Number(body?.contentDepth) || 3));
+    const maxOutputTokens = isSlides
+      ? Math.min(28000, Math.max(16000, requestedSlideCount * (900 + requestedDepth * 220)))
+      : 9000;
     if (!prompt) throw new Error("prompt is required");
 
     const { data: site, error: insErr } = await admin
@@ -266,8 +271,8 @@ Deno.serve(async (req) => {
           const userPrompt = isSlides
             ? [
                 `USER BRIEF:\n${prompt}`,
-                `\nREQUESTED SLIDE COUNT: ${Math.max(8, Math.min(20, Number(body?.slideCount) || 12))}`,
-                `\nCONTENT DEPTH (1-5): ${Math.max(1, Math.min(5, Number(body?.contentDepth) || 3))}`,
+                `\nREQUESTED SLIDE COUNT: ${requestedSlideCount}`,
+                `\nCONTENT DEPTH (1-5): ${requestedDepth}`,
                 `\nTEMPLATE LOCK: You MUST use this exact chosen template identity. Do not switch styles.`,
                 `TEMPLATE ID/FOLDER: ${templateFolder || templateName}`,
                 `TEMPLATE NAME: ${templateName}`,
@@ -296,8 +301,8 @@ Deno.serve(async (req) => {
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt },
               ],
-              temperature: isSlides ? 0.6 : 0.8,
-              max_tokens: isSlides ? 14000 : 9000,
+              temperature: isSlides ? 0.45 : 0.8,
+              max_tokens: maxOutputTokens,
             }),
           });
 
