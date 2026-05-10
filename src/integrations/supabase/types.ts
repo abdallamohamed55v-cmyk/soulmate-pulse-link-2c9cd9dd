@@ -761,6 +761,107 @@ export type Database = {
         }
         Relationships: []
       }
+      document_premium_usage: {
+        Row: {
+          id: string
+          kind: string | null
+          template_id: string | null
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          kind?: string | null
+          template_id?: string | null
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          kind?: string | null
+          template_id?: string | null
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      document_template_images: {
+        Row: {
+          created_at: string
+          image_url: string
+          source: string
+          template_id: string
+          updated_at: string
+          uploaded_by_chat_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          image_url: string
+          source?: string
+          template_id: string
+          updated_at?: string
+          uploaded_by_chat_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          image_url?: string
+          source?: string
+          template_id?: string
+          updated_at?: string
+          uploaded_by_chat_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_template_images_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: true
+            referencedRelation: "document_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_templates: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          kind: string
+          name: string
+          preview_url: string | null
+          sort_order: number
+          structure: Json
+          style: Json
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id: string
+          kind: string
+          name: string
+          preview_url?: string | null
+          sort_order?: number
+          structure?: Json
+          style?: Json
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          preview_url?: string | null
+          sort_order?: number
+          structure?: Json
+          style?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           created_at: string

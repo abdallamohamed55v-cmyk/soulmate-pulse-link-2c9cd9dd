@@ -45,16 +45,26 @@ Deno.serve(async (req) => {
         chat_id: chatId,
         text:
           "أرسل صورة وضع في caption معرف القالب.\n" +
-          "مثال: megsy-3d-portfolio\n" +
-          "أو: set megsy-3d-portfolio\n\n" +
-          "الأوامر:\n/list — عرض كل القوالب المخزنة",
+          "أمثلة:\n• megsy-3d-portfolio  (Slides)\n• cv-modern-tech     (Resume)\n• rep-corporate      (Report)\n\n" +
+          "الأوامر:\n/list — عرض كل القوالب المخزنة\n/docs — قوالب المستندات المتاحة",
       });
       return new Response("ok");
     }
 
     if (text === "/list") {
-      const { data } = await admin.from("template_images").select("template_id, image_url").order("template_id");
-      const lines = (data || []).map((r: any) => `• ${r.template_id}`).join("\n") || "لا يوجد بعد.";
+      const [{ data: slides }, { data: docs }] = await Promise.all([
+        admin.from("template_images").select("template_id").order("template_id"),
+        admin.from("document_template_images").select("template_id").order("template_id"),
+      ]);
+      const sLines = (slides || []).map((r: any) => `• ${r.template_id}`).join("\n") || "—";
+      const dLines = (docs   || []).map((r: any) => `• ${r.template_id}`).join("\n") || "—";
+      await tgApi("sendMessage", { chat_id: chatId, text: `Slides:\n${sLines}\n\nDocuments:\n${dLines}` });
+      return new Response("ok");
+    }
+
+    if (text === "/docs") {
+      const { data } = await admin.from("document_templates").select("id, kind, name").order("kind").order("sort_order");
+      const lines = (data || []).map((r: any) => `• ${r.id}  (${r.kind}) — ${r.name}`).join("\n") || "لا يوجد.";
       await tgApi("sendMessage", { chat_id: chatId, text: lines });
       return new Response("ok");
     }
@@ -91,15 +101,27 @@ Deno.serve(async (req) => {
     const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
     const url = pub.publicUrl;
 
-    await admin.from("template_images").upsert({
-      template_id: id,
-      image_url: url,
-      source: "telegram",
-      uploaded_by_chat_id: chatId,
-      updated_at: new Date().toISOString(),
-    });
-
-    await tgApi("sendMessage", { chat_id: chatId, text: `✅ تم حفظ صورة ${id}` });
+    // Auto-route: if id matches a document_templates row, save there; otherwise treat as slides template.
+    const { data: docTpl } = await admin.from("document_templates").select("id").eq("id", id).maybeSingle();
+    if (docTpl) {
+      await admin.from("document_template_images").upsert({
+        template_id: id,
+        image_url: url,
+        source: "telegram",
+        uploaded_by_chat_id: chatId,
+        updated_at: new Date().toISOString(),
+      });
+      await tgApi("sendMessage", { chat_id: chatId, text: `✅ تم حفظ صورة Document: ${id}` });
+    } else {
+      await admin.from("template_images").upsert({
+        template_id: id,
+        image_url: url,
+        source: "telegram",
+        uploaded_by_chat_id: chatId,
+        updated_at: new Date().toISOString(),
+      });
+      await tgApi("sendMessage", { chat_id: chatId, text: `✅ تم حفظ صورة Slides: ${id}` });
+    }
     return new Response("ok");
   } catch (e) {
     console.error("telegram-templates error", e);

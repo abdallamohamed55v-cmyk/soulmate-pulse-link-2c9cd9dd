@@ -218,6 +218,83 @@ function humanizeStatus(raw: string): string {
 }
 
 
+/** Stream HTML doc from internal generate-document edge function. */
+async function streamDocumentGeneration(
+  prompt: string,
+  opts: { kind: "document" | "report" | "letter" | "resume"; template: Template | null },
+  onStatus: (msg: string) => void,
+  onStep: (msg: string) => void,
+  signal?: AbortSignal,
+): Promise<{ id: string; html: string }> {
+  const { data: sess } = await supabase.auth.getSession();
+  const token = sess.session?.access_token;
+  if (!token) throw new Error("Please sign in");
+
+  onStatus("Warming up"); onStep("Warming up");
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-document`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      prompt, kind: opts.kind,
+      template: opts.template ? {
+        id: opts.template.id, name: opts.template.name,
+        description: opts.template.description, category: opts.template.category,
+      } : null,
+    }),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    if (res.status === 429) {
+      const j = await res.json().catch(() => ({} as any));
+      throw new Error(j?.message || "وصلت إلى الحد اليومي للقوالب المميزة");
+    }
+    throw new Error(`Generation failed (${res.status})`);
+  }
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", siteId = "", lastStep = "", charsSinceTick = 0, phaseIdx = 0;
+  const PHASES = ["Drafting outline", "Writing content", "Refining", "Polishing", "Finalizing"];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n")) !== -1) {
+      const line = buf.slice(0, idx).trim();
+      buf = buf.slice(idx + 1);
+      if (!line.startsWith("data: ")) continue;
+      const data = line.slice(6);
+      if (data === "[DONE]") continue;
+      try {
+        const p = JSON.parse(data);
+        if (p.siteId && !p.done) siteId = p.siteId;
+        if (p.message && p.message !== lastStep) { onStatus(p.message); onStep(p.message); lastStep = p.message; }
+        if (p.delta) {
+          charsSinceTick += p.delta.length;
+          if (charsSinceTick > 1200) {
+            charsSinceTick = 0;
+            const msg = PHASES[phaseIdx++ % PHASES.length];
+            if (msg !== lastStep) { onStatus(msg); onStep(msg); lastStep = msg; }
+          }
+        }
+        if (p.done && p.siteId) siteId = p.siteId;
+        if (p.error) throw new Error(p.error);
+      } catch { /* partial */ }
+    }
+  }
+
+  if (!siteId) throw new Error("Generation completed without an id");
+  const { data, error } = await supabase
+    .from("generated_sites").select("html_compiled").eq("id", siteId).maybeSingle();
+  if (error) throw error;
+  const html = data?.html_compiled || "";
+  if (!html) throw new Error("Document render failed");
+  return { id: siteId, html };
+}
+
 async function streamGenerate(body: any, onStatus: (msg: string) => void, onStep: (msg: string) => void, signal?: AbortSignal) {
   const res = await fetch(`${DDS_BASE}/api/v1/generate`, {
     method: "POST",
@@ -323,7 +400,8 @@ const FilesPage = () => {
   const showTemplates = !!currentKindMeta?.hasTemplates;
   const isSlides = selectedKind === "slides";
 
-  // Load templates: slides combine our in-house "premium" + external DDS "standard"
+  // Load templates: slides combine internal "premium" + external DDS "standard";
+  // document/report/letter/resume come from our internal document_templates table.
   useEffect(() => {
     (async () => {
       const grouped: Record<string, Template[]> = {};
@@ -341,11 +419,11 @@ const FilesPage = () => {
         }
       } catch {}
 
-      // Pull custom uploaded thumbnails (Telegram bot)
-      const imgMap = new Map<string, string>();
+      // Pull custom uploaded thumbnails (Telegram bot) for slides
+      const slidesImgMap = new Map<string, string>();
       try {
         const { data } = await supabase.from("template_images").select("template_id, image_url");
-        for (const r of (data || [])) imgMap.set(r.template_id, r.image_url);
+        for (const r of (data || [])) slidesImgMap.set(r.template_id, r.image_url);
       } catch {}
 
       const premiumSlides: Template[] = LANDING_TEMPLATES.map((t, i) => ({
@@ -353,7 +431,7 @@ const FilesPage = () => {
         id: t.id,
         name: t.name,
         description: t.description,
-        preview: imgMap.get(t.id) || "", // gradient fallback if none
+        preview: slidesImgMap.get(t.id) || "",
         folder: t.folder,
         category: t.category,
         order: i,
@@ -361,10 +439,40 @@ const FilesPage = () => {
 
       const standardWithImages = ddsSlides.map(t => ({
         ...t,
-        preview: imgMap.get(t.id) || "",
+        preview: slidesImgMap.get(t.id) || "",
       }));
 
       grouped.slides = [...premiumSlides, ...standardWithImages];
+
+      // Document templates from our table — overrides DDS for these kinds
+      try {
+        const [{ data: docTpls }, { data: docImgs }] = await Promise.all([
+          supabase.from("document_templates").select("id, kind, name, description, category, sort_order").order("sort_order"),
+          supabase.from("document_template_images").select("template_id, image_url"),
+        ]);
+        const docImgMap = new Map<string, string>();
+        for (const r of (docImgs || [])) docImgMap.set(r.template_id, r.image_url);
+        for (const t of (docTpls || [])) {
+          (grouped[t.kind] = grouped[t.kind] || []);
+          // Replace any DDS entry with the same id, otherwise append
+          const existing = grouped[t.kind].findIndex(x => x.id === t.id);
+          const tpl: Template = {
+            type: t.kind as Kind,
+            id: t.id,
+            name: t.name,
+            description: t.description || undefined,
+            preview: docImgMap.get(t.id) || "",
+            category: (t.category as any) || "standard",
+            order: t.sort_order || 0,
+          };
+          if (existing >= 0) grouped[t.kind][existing] = tpl;
+          else grouped[t.kind].push(tpl);
+        }
+        // Sort each doc kind by order
+        for (const k of ["document", "report", "letter", "resume"] as Kind[]) {
+          if (grouped[k]) grouped[k].sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+      } catch {}
 
       setTemplatesByKind(grouped);
     })();
@@ -501,6 +609,42 @@ const FilesPage = () => {
           await supabase.from("conversations").update({
             title,
             ui_state: { kind: "slides", thumbnail: thumb, generation_id: out.id, source: "generate-site" } as any,
+          }).eq("id", convId);
+          loadSavedFiles();
+        }
+        return;
+      }
+
+      // ───── Document / Report / Letter / Resume → internal generate-document ─────
+      if (selectedKind === "document" || selectedKind === "report" || selectedKind === "letter" || selectedKind === "resume") {
+        const out = await streamDocumentGeneration(
+          prompt,
+          { kind: selectedKind, template: selectedTemplate },
+          onStatusCb, onStepCb, abortRef.current.signal,
+        );
+        const title = prompt.slice(0, 80);
+        const thumb = await captureThumb(out.html, `file-${convId || out.id}`);
+        const summary = `Created "${title}"`;
+        setMessages(prev => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant") {
+            last.status = undefined;
+            last.content = summary;
+            last.generationId = out.id;
+            last.doc = { kind: selectedKind, title } as DocsDoc;
+            last.htmlPreview = out.html;
+            last.thumbnail = thumb;
+          }
+          return copy;
+        });
+        if (convId) {
+          await supabase.from("messages").insert({
+            conversation_id: convId, role: "assistant", content: summary,
+          } as any);
+          await supabase.from("conversations").update({
+            title,
+            ui_state: { kind: selectedKind, thumbnail: thumb, generation_id: out.id, source: "generate-document" } as any,
           }).eq("id", convId);
           loadSavedFiles();
         }
