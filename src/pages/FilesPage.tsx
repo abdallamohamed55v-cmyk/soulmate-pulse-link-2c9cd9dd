@@ -218,6 +218,83 @@ function humanizeStatus(raw: string): string {
 }
 
 
+/** Stream HTML doc from internal generate-document edge function. */
+async function streamDocumentGeneration(
+  prompt: string,
+  opts: { kind: "document" | "report" | "letter" | "resume"; template: Template | null },
+  onStatus: (msg: string) => void,
+  onStep: (msg: string) => void,
+  signal?: AbortSignal,
+): Promise<{ id: string; html: string }> {
+  const { data: sess } = await supabase.auth.getSession();
+  const token = sess.session?.access_token;
+  if (!token) throw new Error("Please sign in");
+
+  onStatus("Warming up"); onStep("Warming up");
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-document`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      prompt, kind: opts.kind,
+      template: opts.template ? {
+        id: opts.template.id, name: opts.template.name,
+        description: opts.template.description, category: opts.template.category,
+      } : null,
+    }),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    if (res.status === 429) {
+      const j = await res.json().catch(() => ({} as any));
+      throw new Error(j?.message || "وصلت إلى الحد اليومي للقوالب المميزة");
+    }
+    throw new Error(`Generation failed (${res.status})`);
+  }
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", siteId = "", lastStep = "", charsSinceTick = 0, phaseIdx = 0;
+  const PHASES = ["Drafting outline", "Writing content", "Refining", "Polishing", "Finalizing"];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n")) !== -1) {
+      const line = buf.slice(0, idx).trim();
+      buf = buf.slice(idx + 1);
+      if (!line.startsWith("data: ")) continue;
+      const data = line.slice(6);
+      if (data === "[DONE]") continue;
+      try {
+        const p = JSON.parse(data);
+        if (p.siteId && !p.done) siteId = p.siteId;
+        if (p.message && p.message !== lastStep) { onStatus(p.message); onStep(p.message); lastStep = p.message; }
+        if (p.delta) {
+          charsSinceTick += p.delta.length;
+          if (charsSinceTick > 1200) {
+            charsSinceTick = 0;
+            const msg = PHASES[phaseIdx++ % PHASES.length];
+            if (msg !== lastStep) { onStatus(msg); onStep(msg); lastStep = msg; }
+          }
+        }
+        if (p.done && p.siteId) siteId = p.siteId;
+        if (p.error) throw new Error(p.error);
+      } catch { /* partial */ }
+    }
+  }
+
+  if (!siteId) throw new Error("Generation completed without an id");
+  const { data, error } = await supabase
+    .from("generated_sites").select("html_compiled").eq("id", siteId).maybeSingle();
+  if (error) throw error;
+  const html = data?.html_compiled || "";
+  if (!html) throw new Error("Document render failed");
+  return { id: siteId, html };
+}
+
 async function streamGenerate(body: any, onStatus: (msg: string) => void, onStep: (msg: string) => void, signal?: AbortSignal) {
   const res = await fetch(`${DDS_BASE}/api/v1/generate`, {
     method: "POST",
