@@ -270,11 +270,32 @@ Deno.serve(async (req) => {
     const kind: string = String(body?.kind || "site");
     const isSlides = kind === "slides";
     const templateName: string = String(body?.templateName || body?.template || "");
+    const templateId: string = String(body?.template || "");
     const templateFolder: string = String(body?.templateFolder || "");
     const rawTemplateHtml: string = String(body?.templateHtml || "");
+    const category: string = String(body?.category || "premium");
     if (isSlides && !rawTemplateHtml) throw new Error("templateHtml is required for slides");
+
+    // ─── PREMIUM DAILY LIMIT (3 / day) ─────────────────────────────
+    if (isSlides && category === "premium") {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { count } = await admin
+        .from("premium_usage")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("used_at", since);
+      if ((count ?? 0) >= 3) {
+        return new Response(JSON.stringify({
+          error: "PREMIUM_LIMIT_REACHED",
+          message: "لقد وصلت إلى الحد اليومي (3) لقوالب Premium. جرّب القوالب العادية أو عُد غدًا.",
+        }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      await admin.from("premium_usage").insert({ user_id: user.id, template_id: templateId });
+    }
+
     const imageQuery = isSlides ? buildImageQuery(prompt) : "";
     const imageUrls = isSlides ? await fetchImageUrls(prompt) : [];
+
 
     // ─── TOKEN GUARD ───────────────────────────────────────────────
     // Compress the template HTML to ~9KB of visual DNA so we don't ship

@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.generate-site]
 verify_jwt = true
+
+[functions.telegram-templates]
+verify_jwt = false

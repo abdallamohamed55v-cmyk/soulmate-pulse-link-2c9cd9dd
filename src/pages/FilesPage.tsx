@@ -84,10 +84,17 @@ async function streamSlidesGeneration(
       templateName: tpl.name,
       templateFolder: tpl.folder,
       templateHtml,
+      category: tpl.category,
     }),
     signal,
   });
-  if (!res.ok || !res.body) throw new Error(`Generation failed (${res.status})`);
+  if (!res.ok || !res.body) {
+    if (res.status === 429) {
+      const j = await res.json().catch(() => ({} as any));
+      throw new Error(j?.message || "وصلت إلى حد القوالب Premium اليومي");
+    }
+    throw new Error(`Generation failed (${res.status})`);
+  }
 
   const reader = res.body.getReader();
   const dec = new TextDecoder();
@@ -322,18 +329,30 @@ const FilesPage = () => {
         }
       } catch {}
 
+      // Pull custom uploaded thumbnails (Telegram bot)
+      const imgMap = new Map<string, string>();
+      try {
+        const { data } = await supabase.from("template_images").select("template_id, image_url");
+        for (const r of (data || [])) imgMap.set(r.template_id, r.image_url);
+      } catch {}
+
       const premiumSlides: Template[] = LANDING_TEMPLATES.map((t, i) => ({
         type: "slides",
         id: t.id,
         name: t.name,
         description: t.description,
-        preview: t.preview,
+        preview: imgMap.get(t.id) || "", // gradient fallback if none
         folder: t.folder,
         category: t.category,
         order: i,
       } as Template));
 
-      grouped.slides = [...premiumSlides, ...ddsSlides];
+      const standardWithImages = ddsSlides.map(t => ({
+        ...t,
+        preview: imgMap.get(t.id) || "",
+      }));
+
+      grouped.slides = [...premiumSlides, ...standardWithImages];
 
       setTemplatesByKind(grouped);
     })();
