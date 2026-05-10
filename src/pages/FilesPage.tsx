@@ -69,8 +69,8 @@ async function streamSlidesGeneration(
     throw new Error(`Could not load template: ${tpl.name}`);
   }
 
-  onStatus("Megsy is warming up");
-  onStep("Megsy is warming up");
+  onStatus("Warming up");
+  onStep("Warming up");
 
   const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-site`, {
     method: "POST",
