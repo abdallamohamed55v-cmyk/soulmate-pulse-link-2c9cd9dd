@@ -22,135 +22,278 @@ const SECTION_HINTS: Record<Kind, string> = {
   resume:   "Header (Name, Title, Contact), Summary, Experience (job, dates, bullets), Education, Skills (chips), Languages.",
 };
 
-function fontFor(kind: Kind, style: any): { heading: string; body: string } {
-  if (style?.fontFamily) return { heading: style.fontFamily, body: style.fontFamily };
-  if (kind === "resume") return { heading: "'Sora', 'Inter', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif" };
-  if (kind === "report") return { heading: "'Fraunces', 'Source Serif 4', Georgia, serif", body: "'Inter', system-ui, sans-serif" };
-  if (kind === "letter") return { heading: "'Fraunces', 'Cormorant Garamond', Georgia, serif", body: "'Inter', system-ui, sans-serif" };
-  return { heading: "'Space Grotesk', 'Inter', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif" };
-}
+// ─────────────────────────────────────────────────────────────
+// Per-kind theme tokens (inspired by Veloured / ScriptForge / AI Visible refs)
+// ─────────────────────────────────────────────────────────────
+type Theme = {
+  bg: string; surface: string; ink: string; muted: string; line: string;
+  accent: string; accent2: string; fontH: string; fontB: string; fontMono: string;
+  hero: "editorial" | "mono" | "warm" | "minimal";
+};
 
-function accentFor(id: string): { a: string; b: string } {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  const hue = h % 360;
-  return { a: `hsl(${hue}, 85%, 56%)`, b: `hsl(${(hue + 40) % 360}, 90%, 62%)` };
+function themeFor(kind: Kind, template: any): Theme {
+  const a = template?.style?.accent;
+  if (kind === "letter") return {
+    bg: "#0e0e10", surface: "#15151a", ink: "#f5f3ee", muted: "#8a8783",
+    line: "rgba(255,255,255,.08)", accent: a || "#c9a84c", accent2: "#f0d78c",
+    fontH: "'Fraunces', 'Playfair Display', Georgia, serif",
+    fontB: "'Inter', system-ui, sans-serif",
+    fontMono: "'JetBrains Mono', ui-monospace, monospace",
+    hero: "editorial",
+  };
+  if (kind === "report") return {
+    bg: "#0a0a0a", surface: "#0f0f0f", ink: "#ffffff", muted: "#888",
+    line: "#1f1f1f", accent: a || "#ffffff", accent2: "#3b82f6",
+    fontH: "'Space Grotesk', system-ui, sans-serif",
+    fontB: "'Inter', system-ui, sans-serif",
+    fontMono: "'JetBrains Mono', ui-monospace, monospace",
+    hero: "mono",
+  };
+  if (kind === "resume") return {
+    bg: "#fbf7f5", surface: "#ffffff", ink: "#1a1614", muted: "#9b8880",
+    line: "rgba(232,76,43,.15)", accent: a || "#e84c2b", accent2: "#f2705a",
+    fontH: "'Sora', 'Space Grotesk', system-ui, sans-serif",
+    fontB: "'Inter', system-ui, sans-serif",
+    fontMono: "'JetBrains Mono', ui-monospace, monospace",
+    hero: "warm",
+  };
+  // document (general)
+  return {
+    bg: "#fbf7f5", surface: "#ffffff", ink: "#1a1614", muted: "#9b8880",
+    line: "rgba(0,0,0,.08)", accent: a || "#e84c2b", accent2: "#f2705a",
+    fontH: "'DM Serif Display', 'Fraunces', Georgia, serif",
+    fontB: "'Inter', system-ui, sans-serif",
+    fontMono: "'JetBrains Mono', ui-monospace, monospace",
+    hero: "minimal",
+  };
 }
 
 function buildHtmlShell(inner: string, kind: Kind, template: any): string {
-  const palette = template?.style?.accent
-    ? { a: template.style.accent, b: template?.style?.accent2 || template.style.accent }
-    : accentFor(template?.id || kind);
-  const fonts = fontFor(kind, template?.style || {});
+  const t = themeFor(kind, template);
   const title = (template?.name || kind).toString().replace(/</g, "");
+  const isDark = t.bg.startsWith("#0") || t.bg.startsWith("#1");
+
   return `<!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>${title}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Sora:wght@500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=DM+Serif+Display:ital@0;1&family=Playfair+Display:ital,wght@0,400;0,700;1,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --accent: ${palette.a};
-  --accent-2: ${palette.b};
-  --ink: #0a0a0f;
-  --ink-soft: #3f3f46;
-  --muted: #71717a;
-  --line: rgba(0,0,0,.08);
-  --bg: #f6f5f2;
-  --card: #ffffff;
-  --grad: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
-  --grad-soft: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, transparent), color-mix(in srgb, var(--accent-2) 10%, transparent));
-  --radius: 24px;
-  --shadow: 0 1px 2px rgba(10,10,15,.04), 0 24px 60px -20px rgba(10,10,15,.18);
-  --font-h: ${fonts.heading};
-  --font-b: ${fonts.body};
+  --bg: ${t.bg};
+  --surface: ${t.surface};
+  --ink: ${t.ink};
+  --muted: ${t.muted};
+  --line: ${t.line};
+  --accent: ${t.accent};
+  --accent-2: ${t.accent2};
+  --font-h: ${t.fontH};
+  --font-b: ${t.fontB};
+  --font-mono: ${t.fontMono};
+  --radius: 20px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: var(--font-b); line-height: 1.7; -webkit-font-smoothing: antialiased; }
-body::before {
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-b); line-height: 1.7; font-size: 16.5px;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+::selection { background: var(--accent); color: ${isDark ? "#000" : "#fff"}; }
+
+/* Document shell — magazine-style article on a tinted canvas */
+.doc {
+  position: relative;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 88px 72px 120px;
+}
+.doc::before {
   content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(60% 50% at 12% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
-    radial-gradient(50% 40% at 100% 100%, color-mix(in srgb, var(--accent-2) 15%, transparent), transparent 70%);
+    radial-gradient(60% 50% at 8% 0%, color-mix(in srgb, var(--accent) ${isDark ? "22%" : "14%"}, transparent), transparent 65%),
+    radial-gradient(50% 40% at 100% 100%, color-mix(in srgb, var(--accent-2) ${isDark ? "18%" : "10%"}, transparent), transparent 70%);
 }
-.page {
-  position: relative; z-index: 1;
-  max-width: 880px; margin: 40px auto; padding: 72px 72px 88px;
-  background: var(--card); border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  border: 1px solid var(--line);
-  overflow: hidden;
-}
-.page::before {
-  content: ""; position: absolute; inset: 0 0 auto 0; height: 6px; background: var(--grad);
-}
-h1 {
+.doc > * { position: relative; z-index: 1; }
+
+/* Hero / cover block at the top (auto-applies to first H1) */
+.doc > h1:first-child,
+.doc > div[dir] > h1:first-child {
   font-family: var(--font-h);
-  font-size: clamp(38px, 5vw, 56px); font-weight: 700; line-height: 1.05;
-  letter-spacing: -0.035em; margin: 0 0 18px;
-  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-size: clamp(44px, 7vw, 88px);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  margin: 0 0 28px;
+  color: var(--ink);
 }
+${t.hero === "warm" || t.hero === "minimal" ? `
+.doc > h1:first-child::after,
+.doc > div[dir] > h1:first-child::after {
+  content: ""; display: block; width: 80px; height: 4px;
+  background: var(--accent); margin-top: 24px; border-radius: 4px;
+}` : ""}
+${t.hero === "editorial" ? `
+.doc > h1:first-child em,
+.doc > div[dir] > h1:first-child em {
+  font-style: italic; color: var(--accent); font-weight: 400;
+}` : ""}
+
+/* General typography */
+h1 { font-family: var(--font-h); font-size: clamp(34px, 4.5vw, 52px); font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; margin: 56px 0 20px; color: var(--ink); }
 h2 {
   font-family: var(--font-h);
-  font-size: 26px; font-weight: 700; margin: 44px 0 14px; color: var(--ink);
-  letter-spacing: -0.02em; position: relative; padding-left: 18px;
+  font-size: clamp(24px, 2.6vw, 32px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 56px 0 16px;
+  color: var(--ink);
+  display: flex; align-items: baseline; gap: 14px;
 }
 h2::before {
-  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px;
-  background: var(--grad); border-radius: 4px;
+  content: counter(h2-counter, decimal-leading-zero);
+  counter-increment: h2-counter;
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  padding-top: 6px;
 }
-h3 { font-family: var(--font-h); font-size: 19px; font-weight: 600; margin: 24px 0 8px; letter-spacing: -0.01em; }
-p  { margin: 0 0 14px; color: var(--ink-soft); font-size: 16.5px; }
-strong { color: var(--ink); }
-ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--ink-soft); }
-li { margin-bottom: 6px; }
-li::marker { color: var(--accent); }
-a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.doc { counter-reset: h2-counter; }
+h3 { font-family: var(--font-h); font-size: 21px; font-weight: 600; margin: 32px 0 10px; letter-spacing: -0.01em; color: var(--ink); }
+p {
+  margin: 0 0 18px;
+  color: ${isDark ? "rgba(245,243,238,.78)" : "var(--ink)"};
+  font-size: 17px; line-height: 1.75;
+}
+.doc > p:nth-of-type(1), .doc > div[dir] > p:nth-of-type(1) {
+  font-size: 21px; line-height: 1.55; font-weight: 400;
+  color: ${isDark ? "rgba(245,243,238,.92)" : "var(--ink)"};
+  margin-bottom: 40px;
+  ${t.hero === "editorial" ? "font-family: var(--font-h); font-style: italic;" : ""}
+}
+strong { color: var(--ink); font-weight: 600; }
+em { font-style: italic; }
+a {
+  color: var(--accent); text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: border-color .2s var(--ease);
+}
 a:hover { border-bottom-color: var(--accent); }
-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 18px 0; font-size: 14.5px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
-th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); }
-th { background: var(--grad-soft); font-weight: 600; color: var(--ink); }
-tr:last-child td { border-bottom: none; }
-blockquote {
-  margin: 20px 0; padding: 18px 22px; border-radius: 14px;
-  background: var(--grad-soft);
-  border-left: 4px solid var(--accent);
-  font-family: var(--font-h); font-size: 18px; color: var(--ink); font-style: italic;
+ul, ol { margin: 0 0 20px; padding-left: 24px; }
+li { margin-bottom: 8px; color: ${isDark ? "rgba(245,243,238,.78)" : "var(--ink)"}; }
+li::marker { color: var(--accent); font-weight: 600; }
+
+/* Tables — editorial bordered */
+table {
+  width: 100%; border-collapse: collapse; margin: 24px 0;
+  font-size: 15px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
-hr { border: none; border-top: 1px dashed var(--line); margin: 32px 0; }
-.meta { color: var(--muted); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 14px; font-weight: 600; }
-.signature { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); font-family: var(--font-h); font-size: 18px; color: var(--ink); }
-.skills { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 18px; padding: 0; list-style: none; }
+th, td { padding: 14px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1px solid var(--ink);
+}
+tr:last-child td { border-bottom: none; }
+
+/* Pull quote */
+blockquote {
+  margin: 40px -20px;
+  padding: 32px 40px;
+  font-family: var(--font-h);
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.35; letter-spacing: -0.015em;
+  color: var(--ink);
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-radius: 0 12px 12px 0;
+}
+
+hr { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
+
+/* Meta line (date / author) */
+.meta {
+  font-family: var(--font-mono); font-size: 12px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 20px; font-weight: 500;
+}
+
+/* Letter signature */
+.signature {
+  margin-top: 72px; padding-top: 32px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-h); font-size: 22px; color: var(--ink);
+}
+
+/* Resume specifics */
+.skills { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 28px; padding: 0; list-style: none; }
 .skills span, .skills li {
-  background: var(--grad-soft); color: var(--ink);
-  padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+  background: ${isDark ? "rgba(255,255,255,.06)" : "color-mix(in srgb, var(--accent) 8%, transparent)"};
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 7px 14px; border-radius: 999px;
+  letter-spacing: 0.02em;
 }
 .experience-item {
-  margin-bottom: 22px; padding: 20px 22px; border-radius: 16px;
-  background: #fafaf9; border: 1px solid var(--line);
+  margin-bottom: 28px; padding: 24px 28px;
+  background: ${isDark ? "rgba(255,255,255,.03)" : "var(--surface)"};
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  transition: transform .3s var(--ease), border-color .3s var(--ease);
 }
-.experience-item .role { font-family: var(--font-h); font-weight: 700; font-size: 17px; color: var(--ink); }
-.experience-item .dates { color: var(--muted); font-size: 13px; font-weight: 500; margin-bottom: 6px; }
-[dir="rtl"] h2 { padding-left: 0; padding-right: 18px; }
-[dir="rtl"] h2::before { left: auto; right: 0; }
-[dir="rtl"] ul, [dir="rtl"] ol { padding-left: 0; padding-right: 22px; }
-[dir="rtl"] blockquote { border-left: none; border-right: 4px solid var(--accent); }
+.experience-item:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+.experience-item .role {
+  font-family: var(--font-h); font-weight: 700;
+  font-size: 19px; color: var(--ink); letter-spacing: -0.01em;
+}
+.experience-item .dates {
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--muted); letter-spacing: 0.05em;
+  text-transform: uppercase; margin-bottom: 10px;
+}
+.experience-item ul { margin-top: 8px; }
+
+/* RTL support */
+[dir="rtl"] h2 { flex-direction: row-reverse; }
+[dir="rtl"] ul, [dir="rtl"] ol { padding-left: 0; padding-right: 24px; }
+[dir="rtl"] blockquote {
+  border-left: none; border-right: 3px solid var(--accent);
+  border-radius: 12px 0 0 12px;
+}
+[dir="rtl"] .doc > h1:first-child::after { margin-left: auto; }
+
+/* Responsive */
 @media (max-width: 720px) {
-  .page { margin: 16px; padding: 40px 28px 56px; border-radius: 18px; }
-  h1 { font-size: 34px; }
-  h2 { font-size: 22px; }
+  .doc { padding: 56px 24px 80px; }
+  h2 { gap: 10px; }
+  blockquote { margin: 28px 0; padding: 20px 22px; }
+  .experience-item { padding: 18px 20px; }
 }
+
+/* Print — clean A4 */
 @media print {
-  body { background: #fff; }
-  body::before { display: none; }
-  .page { box-shadow: none; margin: 0; padding: 48px; max-width: 100%; border-radius: 0; border: none; }
-  h1 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: #fff; color: #000; }
+  .doc::before { display: none; }
+  .doc { padding: 24mm 20mm; max-width: 100%; }
+  h1, h2, h3, p, li { color: #000 !important; }
+  .experience-item { break-inside: avoid; background: #fff; }
+  blockquote { background: #fafafa; color: #000; }
+  a { color: #000; border-bottom: 1px solid #000; }
 }
 </style>
-</head><body><article class="page">${inner}</article></body></html>`;
+</head><body><article class="doc">${inner}</article></body></html>`;
 }
 
 function sseLine(obj: any): string { return `data: ${JSON.stringify(obj)}\n\n`; }
@@ -224,14 +367,19 @@ Deno.serve(async (req) => {
 
           const sectionHint = SECTION_HINTS[kind] || SECTION_HINTS.document;
           const sysPrompt = [
-            `You are an expert ${kind} writer.`,
-            `Output ONLY clean HTML body content (NO <html>, <head>, <body>, NO <style>, NO <script>).`,
-            `Use semantic tags: <h1>, <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <table>, <hr>, <blockquote>.`,
-            kind === "resume" ? `Use class="skills" on a <div> for skill chips with <span> children. Use class="experience-item" for each job, with <div class="role">, <div class="dates">, and a <ul> of bullets.` : "",
-            kind === "letter" ? `Use class="signature" on the closing block.` : "",
-            `Detect language of the user prompt and write in that language. If Arabic, set the article to RTL by starting with <div dir="rtl"> and closing with </div>.`,
-            `Style guidance for this template "${tpl?.name || "default"}": ${tpl?.description || ""}.`,
-            `Structure: ${sectionHint}`,
+            `You are an award-winning ${kind} writer producing editorial-grade content.`,
+            `Output ONLY clean HTML body content (NO <html>, <head>, <body>, NO <style>, NO <script>, NO markdown fences).`,
+            `Use semantic tags only: <h1>, <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <table>, <thead>, <tbody>, <tr>, <th>, <td>, <hr>, <blockquote>.`,
+            `Start with exactly one <h1> as the title. Follow it with a single bold lead paragraph (1-3 sentences) that summarizes the piece.`,
+            `Use <h2> for major sections (do NOT number them — numbering is added automatically).`,
+            `Use <blockquote> for one or two pull-quotes that highlight a key insight.`,
+            `Prefer concise, scannable paragraphs (2-4 sentences each). Avoid filler text and avoid generic headings like "Section 1".`,
+            kind === "resume" ? `Use class="skills" on a <ul> for skill chips. For each job use <div class="experience-item"> with <div class="role">, <div class="dates">, then a <ul> of 3-5 measurable bullet achievements.` : "",
+            kind === "letter" ? `Use class="signature" on the closing block. Keep paragraphs short and warm. Use 'em' inside the H1 for an italic emphasis word.` : "",
+            kind === "report" ? `Include a <table> with key metrics where relevant. End with a "References" h2 listing sources as a numbered list.` : "",
+            `Detect language of the user prompt and write in that language. If Arabic, wrap the entire content in <div dir="rtl"> ... </div>.`,
+            `Style guidance for template "${tpl?.name || "default"}": ${tpl?.description || ""}.`,
+            `Structure hint: ${sectionHint}`,
           ].filter(Boolean).join("\n");
 
           const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
