@@ -324,8 +324,9 @@ const FilesPage = () => {
         description: t.description,
         preview: t.preview,
         folder: t.folder,
+        category: t.category,
         order: i,
-      }));
+      } as Template));
 
       setTemplatesByKind(grouped);
     })();
