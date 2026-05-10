@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solstice — Seasonal Flow</title>
+  <style>
+     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Playfair+Display:wght@400;500;600&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #fafafa;
+      color: #1a1a1a;
+      overflow-x: hidden;
+    }
+
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 28px 48px;
+      gap: 40px;
+      transition: color 0.8s ease;
+    }
+
+    nav .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      position: absolute;
+      left: 48px;
+    }
+
+    nav a {
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+      color: inherit;
+      opacity: 0.7;
+      transition: opacity 0.3s;
+    }
+
+    nav a:hover {
+      opacity: 1;
+    }
+
+
+
+    .section {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: flex-end;
+      padding: 80px 60px;
+      transition: background-color 1s ease;
+    }
+
+    .section-content {
+      position: relative;
+      z-index: 20;
+      max-width: 420px;
+      transition: color 0.8s ease;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 400;
+      line-height: 1.2;
+      margin-bottom: 24px;
+    }
+
+    .section-desc {
+      font-size: 14px;
+      line-height: 1.8;
+      opacity: 0.6;
+      font-weight: 300;
+      max-width: 340px;
+    }
+
+    .tags {
+      display: flex;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .tag {
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid;
+      opacity: 0.6;
+      cursor: default;
+      transition: opacity 0.3s;
+    }
+
+    .tag:hover {
+      opacity: 1;
+    }
+
+    .section-indicator {
+      position: fixed;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .indicator-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: all 0.4s ease;
+    }
+
+    .indicator-dot.active {
+      background: currentColor;
+      transform: scale(1.3);
+    }
+
+    .scroll-hint {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      opacity: 0.4;
+      animation: pulseHint 2s ease-in-out infinite;
+      transition: opacity 0.6s;
+    }
+
+    @keyframes pulseHint {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(5px); }
+    }
+
+    /* Season color themes */
+    .section-spring { background: #c8dbbe; }
+    .section-summer { background: #e8d4b0; }
+    .section-autumn { background: #d4bfaa; }
+    .section-winter { background: #b8c8dc; }
+
+
+
+    @media (max-width: 768px) {
+      .section { padding: 60px 28px; }
+      nav { padding: 20px 24px; }
+      nav .logo { left: 24px; }
+      .section-indicator { right: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav id="main-nav">
+    <span class="logo">solstice</span>
+    <a href="#">Seasons</a>
+    <a href="#">Matter</a>
+    <a href="#">Cycles</a>
+    <a href="#">Archive</a>
+  </nav>
+
+
+
+  <div class="section section-spring" id="sec-0">
+    <div class="section-content">
+      <div class="section-label">01 — Spring</div>
+      <div class="section-title">Awakening<br>of form.</div>
+      <div class="section-desc">New geometries emerge from silence. The surface breathes with soft organic textures, alive with potential energy.</div>
+      <div class="tags">
+        <span class="tag">Growth</span>
+        <span class="tag">Renewal</span>
+        <span class="tag">Bloom</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section section-summer" id="sec-1">
+    <div class="section-content">
+      <div class="section-label">02 — Summer</div>
+      <div class="section-title">Radiance<br>at peak.</div>
+      <div class="section-desc">Light saturates every facet. The form reaches maximum intensity — warm, golden, impossibly vivid.</div>
+      <div class="tags">
+        <span class="tag">Warmth</span>
+        <span class="tag">Zenith</span>
+        <span class="tag">Energy</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section section-autumn" id="sec-2">
+    <div class="section-content">
+      <div class="section-label">03 — Autumn</div>
+      <div class="section-title">Graceful<br>decay.</div>
+      <div class="section-desc">Rich tones settle into the surface. The geometry matures, carrying the weight of accumulated time.</div>
+      <div class="tags">
+        <span class="tag">Harvest</span>
+        <span class="tag">Depth</span>
+        <span class="tag">Patina</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section section-winter" id="sec-3">
+    <div class="section-content">
+      <div class="section-label" style="position:relative;z-index:20;">04 — Winter</div>
+      <div class="section-title" style="position:relative;z-index:20;">Crystalline<br>stillness.</div>
+      <div class="section-desc" style="position:relative;z-index:20;">Stripped to essence. The form becomes translucent, reflecting cold clarity and quiet contemplation.</div>
+      <div class="tags">
+        <span class="tag">Frost</span>
+        <span class="tag">Silence</span>
+        <span class="tag">Rest</span>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div class="section-indicator" id="indicators"></div>
+  <div class="scroll-hint" id="scroll-hint">Scroll</div>
+
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.webgpu.js",
+      "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.webgpu.js",
+      "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.tsl.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.2/examples/jsm/",
+      "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@4.0.2/dist/main.js",
+
+    }
+  }
+  </script>
+
+  <script type="module" src="scene.js"></script>
+</body>
+</html>

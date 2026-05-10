@@ -1,0 +1,16 @@
+project_id = "ltgampdtawuefwwayncx"
+
+[functions.weekly-learn-recap]
+verify_jwt = false
+
+[functions.chat-followups]
+verify_jwt = false
+
+[functions.chat-extract-memory]
+verify_jwt = false
+
+[functions.qa-magic-link]
+verify_jwt = false
+
+[functions.generate-site]
+verify_jwt = true
