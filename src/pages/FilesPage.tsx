@@ -146,7 +146,7 @@ type Kind =
   | "slides" | "document" | "resume" | "report"
   | "spreadsheet" | "letter" | "roadmap" | "mindmap" | "timeline";
 
-interface Template { type: Kind; id: string; name: string; description?: string; preview?: string; style?: string; order?: number; folder?: string; }
+interface Template { type: Kind; id: string; name: string; description?: string; preview?: string; style?: string; order?: number; folder?: string; category?: "premium" | "standard"; }
 interface DocsDoc { kind: Kind; template?: string; title?: string; [k: string]: any; }
 
 interface ChatMsg {
@@ -324,8 +324,9 @@ const FilesPage = () => {
         description: t.description,
         preview: t.preview,
         folder: t.folder,
+        category: t.category,
         order: i,
-      }));
+      } as Template));
 
       setTemplatesByKind(grouped);
     })();
@@ -644,6 +645,7 @@ const FilesPage = () => {
 
   const pickerTemplates: PickerTemplate[] = currentTemplates.map(t => ({
     id: t.id, name: t.name, preview: t.preview, description: t.description, fallbackLabel: t.name,
+    category: t.category,
   }));
 
   return (
@@ -881,6 +883,7 @@ const FilesPage = () => {
         open={pickerOpen}
         templates={pickerTemplates}
         selectedId={selectedTemplate?.id}
+        showCategoryTabs={isSlides}
         onSelect={(t) => {
           const full = currentTemplates.find(x => x.id === t.id);
           if (full) setSelectedTemplate(full);
@@ -1032,50 +1035,7 @@ const InputBox = ({
           </button>
         )}
 
-        {isSlides && (
-          <div className="relative" ref={optionsRef}>
-            <button
-              onClick={() => setOptionsOpen(!optionsOpen)}
-              className="h-10 px-3.5 rounded-full flex items-center gap-1.5 text-xs font-medium text-foreground hover:scale-[1.02] active:scale-95 transition"
-              style={optionsOpen ? { ...glassChip, background: "hsl(var(--foreground))", color: "hsl(var(--background))" } : glassChip}
-              aria-label="Slide options"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span>Options</span>
-            </button>
-
-            {optionsOpen && (
-              <div
-                className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-[min(18rem,calc(100vw-2rem))] rounded-3xl p-4 z-40 space-y-4"
-                style={glassSurface}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div>
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
-                    <span className="font-medium">Number of slides</span>
-                    <span className="tabular-nums font-semibold text-foreground">{slideCount}</span>
-                  </div>
-                  <input
-                    type="range" min={4} max={20} value={slideCount}
-                    onChange={(e) => setSlideCount(Number(e.target.value))}
-                    className="w-full accent-primary h-1"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
-                    <span className="font-medium">Content depth</span>
-                    <span className="tabular-nums font-semibold text-foreground">{contentDepth}</span>
-                  </div>
-                  <input
-                    type="range" min={1} max={5} value={contentDepth}
-                    onChange={(e) => setContentDepth(Number(e.target.value))}
-                    className="w-full accent-primary h-1"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Slide settings removed — generator picks the optimal length and depth automatically. */}
 
         {isGenerating ? (
           <button

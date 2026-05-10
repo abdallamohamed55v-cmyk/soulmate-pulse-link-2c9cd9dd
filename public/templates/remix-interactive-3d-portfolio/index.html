@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kael — Editor Portfolio</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #080a12;
+      --text: #e8e6e1;
+      --accent: #c9a87c;
+      --muted: #4a4a5a;
+      --card-bg: rgba(255,255,255,0.04);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* Custom Cursor */
+    .cursor {
+      position: fixed;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 10000;
+      transition: transform 0.15s ease, background 0.2s ease;
+      transform: translate(-50%, -50%);
+    }
+    .cursor.hover {
+      transform: translate(-50%, -50%) scale(2.5);
+      background: rgba(201,168,124,0.15);
+      border-color: var(--accent);
+    }
+    .cursor-dot {
+      position: fixed;
+      width: 5px;
+      height: 5px;
+      background: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 10001;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Preloader */
+    .preloader {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    .preloader.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+    .preloader-text {
+      font-family: 'Syne', sans-serif;
+      font-size: 4rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -2px;
+    }
+    .preloader-bar {
+      width: 200px;
+      height: 2px;
+      background: var(--muted);
+      margin-top: 30px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .preloader-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 28px 50px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      mix-blend-mode: difference;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: -1px;
+      color: #fff;
+    }
+    .nav-links {
+      display: flex;
+      gap: 40px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      position: relative;
+      padding-bottom: 4px;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: #fff;
+      transition: width 0.3s ease;
+    }
+    .nav-links a:hover::after { width: 100%; }
+
+    /* Hero */
+    .hero {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-content {
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+    .hero-tag {
+      font-size: 0.75rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 30px;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeUp 0.8s ease 1.8s forwards;
+    }
+    .hero-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(3rem, 8vw, 7rem);
+      font-weight: 800;
+      line-height: 0.95;
+      letter-spacing: -3px;
+      opacity: 0;
+      transform: translateY(40px);
+      animation: fadeUp 1s ease 2s forwards;
+    }
+    .hero-title .outline {
+      -webkit-text-stroke: 1.5px var(--text);
+      color: transparent;
+    }
+    .hero-sub {
+      font-size: 1.1rem;
+      color: var(--muted);
+      margin-top: 30px;
+      font-weight: 300;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeUp 0.8s ease 2.3s forwards;
+    }
+    .scroll-indicator {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      animation: fadeUp 0.8s ease 2.6s forwards;
+    }
+    .scroll-line {
+      width: 1px;
+      height: 60px;
+      background: linear-gradient(to bottom, var(--accent), transparent);
+      animation: scrollPulse 2s ease infinite;
+    }
+
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* Floating Images in Hero */
+    .floating-images {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .float-img {
+      position: absolute;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      transition: transform 0.6s cubic-bezier(0.23,1,0.32,1);
+    }
+    .float-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .float-img:nth-child(1) { width: 180px; height: 120px; top: 12%; left: 8%; }
+    .float-img:nth-child(2) { width: 140px; height: 100px; top: 20%; right: 12%; }
+    .float-img:nth-child(3) { width: 160px; height: 110px; bottom: 25%; left: 5%; }
+    .float-img:nth-child(4) { width: 200px; height: 130px; bottom: 18%; right: 8%; }
+    .float-img:nth-child(5) { width: 120px; height: 90px; top: 8%; left: 45%; }
+    .float-img:nth-child(6) { width: 150px; height: 100px; bottom: 35%; right: 25%; }
+
+    /* Brands Marquee */
+    .brands-section {
+      padding: 60px 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+    .marquee-track {
+      display: flex;
+      gap: 80px;
+      animation: marquee 20s linear infinite;
+      width: max-content;
+    }
+    .marquee-track span {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* Statement Section */
+    .statement {
+      padding: 150px 50px;
+      max-width: 1100px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .statement-text {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+    .statement-text .highlight {
+      color: var(--text);
+      position: relative;
+    }
+    .statement-text .brand-name {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Projects Grid */
+    .projects {
+      padding: 100px 50px;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 80px;
+    }
+    .section-label {
+      font-size: 0.75rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 15px;
+    }
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      font-weight: 800;
+      letter-spacing: -2px;
+    }
+    .project-count {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .projects-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+    .project-card {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      aspect-ratio: 16/10;
+      background: var(--card-bg);
+      cursor: none;
+      group: true;
+    }
+    .project-card:nth-child(2) { margin-top: 80px; }
+    .project-card:nth-child(3) { margin-top: -40px; }
+
+    .project-thumbnail {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.8s cubic-bezier(0.23,1,0.32,1), filter 0.5s ease;
+      filter: saturate(0.7) brightness(0.6);
+    }
+    .project-card:hover .project-thumbnail {
+      transform: scale(1.08);
+      filter: saturate(1) brightness(0.8);
+    }
+    .project-overlay {
+      position: absolute;
+      inset: 0;
+      padding: 35px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      background: linear-gradient(to top, rgba(8,10,18,0.9) 0%, transparent 60%);
+    }
+    .project-category {
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .project-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      transform: translateY(10px);
+      transition: transform 0.5s ease;
+    }
+    .project-card:hover .project-name {
+      transform: translateY(0);
+    }
+    .project-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.5s ease 0.1s;
+    }
+    .project-card:hover .project-desc {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .project-year {
+      position: absolute;
+      top: 30px;
+      right: 30px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 2px;
+    }
+
+    /* Skills Ticker */
+    .skills-section {
+      padding: 120px 50px;
+      position: relative;
+    }
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+      max-width: 1200px;
+      margin: 60px auto 0;
+    }
+    .skill-card {
+      background: var(--card-bg);
+      padding: 50px 35px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.4s ease;
+      border-radius: 4px;
+    }
+    .skill-card:hover {
+      background: rgba(201,168,124,0.08);
+    }
+    .skill-icon {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      display: block;
+    }
+    .skill-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .skill-detail {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .skill-bar {
+      width: 100%;
+      height: 2px;
+      background: rgba(255,255,255,0.06);
+      margin-top: 25px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .skill-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 1.5s cubic-bezier(0.23,1,0.32,1);
+    }
+    .skill-card.visible .skill-fill {
+      width: var(--level);
+    }
+
+    /* Experience / Timeline */
+    .experience {
+      padding: 120px 50px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .timeline {
+      margin-top: 70px;
+      position: relative;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(255,255,255,0.08);
+    }
+    .timeline-item {
+      padding: 0 0 60px 50px;
+      position: relative;
+      opacity: 0;
+      transform: translateX(-20px);
+      transition: all 0.6s ease;
+    }
+    .timeline-item.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -4px;
+      top: 8px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .timeline-year {
+      font-size: 0.75rem;
+      letter-spacing: 3px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .timeline-role {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .timeline-company {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+    .timeline-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 12px;
+      line-height: 1.7;
+      max-width: 500px;
+    }
+
+    /* Showreel Section */
+    .showreel {
+      padding: 120px 50px;
+      text-align: center;
+    }
+    .reel-container {
+      max-width: 1000px;
+      margin: 50px auto 0;
+      aspect-ratio: 16/9;
+      background: var(--card-bg);
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      cursor: none;
+    }
+    .reel-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      background: linear-gradient(135deg, rgba(201,168,124,0.1), transparent);
+    }
+    .play-btn {
+      width: 90px;
+      height: 90px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.4s ease;
+      animation: pulse 2s ease infinite;
+    }
+    .play-btn:hover {
+      background: var(--accent);
+      transform: scale(1.1);
+    }
+    .play-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--accent);
+      margin-left: 4px;
+      transition: fill 0.3s ease;
+    }
+    .play-btn:hover svg { fill: var(--bg); }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,124,0.3); }
+      50% { box-shadow: 0 0 0 20px rgba(201,168,124,0); }
+    }
+    .reel-label {
+      margin-top: 20px;
+      font-size: 0.8rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* Contact */
+    .contact {
+      padding: 150px 50px;
+      text-align: center;
+      position: relative;
+    }
+    .contact-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 800;
+      letter-spacing: -3px;
+      margin-bottom: 20px;
+    }
+    .contact-title .accent { color: var(--accent); }
+    .contact-email {
+      font-size: 1.2rem;
+      color: var(--muted);
+      margin-top: 15px;
+    }
+    .contact-email a {
+      color: var(--text);
+      text-decoration: none;
+      border-bottom: 1px solid var(--accent);
+      padding-bottom: 4px;
+      transition: color 0.3s ease;
+    }
+    .contact-email a:hover { color: var(--accent); }
+    .social-links {
+      display: flex;
+      gap: 30px;
+      justify-content: center;
+      margin-top: 50px;
+    }
+    .social-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: color 0.3s ease;
+    }
+    .social-links a:hover { color: var(--accent); }
+
+    /* Footer */
+    footer {
+      padding: 30px 50px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* 3D Canvas Overlay */
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Magnetic elements */
+    .magnetic {
+      display: inline-block;
+      transition: transform 0.3s cubic-bezier(0.23,1,0.32,1);
+    }
+
+    /* Reveal animations */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: all 0.8s cubic-bezier(0.23,1,0.32,1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Noise texture overlay */
+    .noise {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      nav { padding: 20px 25px; }
+      .nav-links { display: none; }
+      .hero-title { letter-spacing: -1px; }
+      .projects { padding: 60px 25px; }
+      .projects-grid { grid-template-columns: 1fr; }
+      .project-card:nth-child(2) { margin-top: 0; }
+      .project-card:nth-child(3) { margin-top: 0; }
+      .skills-grid { grid-template-columns: 1fr 1fr; }
+      .statement { padding: 80px 25px; }
+      .section-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      body { cursor: auto; }
+      .cursor, .cursor-dot { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="noise"></div>
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Custom Cursor -->
+  <div class="cursor"></div>
+  <div class="cursor-dot"></div>
+
+  <!-- Preloader -->
+  <div class="preloader">
+    <div class="preloader-text">KAEL</div>
+    <div class="preloader-bar">
+      <div class="preloader-fill"></div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="logo magnetic">KAEL.</div>
+    <ul class="nav-links">
+      <li><a href="#work" class="magnetic">Work</a></li>
+      <li><a href="#about" class="magnetic">About</a></li>
+      <li><a href="#reel" class="magnetic">Showreel</a></li>
+      <li><a href="#contact" class="magnetic">Contact</a></li>
+    </ul>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" id="hero">
+    <div class="floating-images" id="floatingImages">
+      <div class="float-img">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='120'%3E%3Crect fill='%231a1a2e' width='180' height='120'/%3E%3Crect fill='%23c9a87c' x='20' y='15' width='140' height='90' rx='5' opacity='0.3'/%3E%3Cpolygon points='70,35 110,60 70,85' fill='%23c9a87c' opacity='0.6'/%3E%3C/svg%3E" alt="">
+      </div>
+      <div class="float-img">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='100'%3E%3Crect fill='%230f3460' width='140' height='100'/%3E%3Ccircle cx='70' cy='50' r='30' fill='none' stroke='%23c9a87c' stroke-width='2'/%3E%3Cline x1='50' y1='50' x2='90' y2='50' stroke='%23c9a87c' stroke-width='2'/%3E%3C/svg%3E" alt="">
+      </div>
+      <div class="float-img">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='110'%3E%3Crect fill='%2316213e' width='160' height='110'/%3E%3Crect fill='%23c9a87c' x='15' y='10' width='60' height='40' rx='3' opacity='0.4'/%3E%3Crect fill='%23e8e6e1' x='85' y='10' width='60' height='40' rx='3' opacity='0.2'/%3E%3Crect fill='%23c9a87c' x='15' y='60' width='130' height='6' rx='3' opacity='0.3'/%3E%3Crect fill='%23e8e6e1' x='15' y='76' width='90' height='6' rx='3' opacity='0.15'/%3E%3C/svg%3E" alt="">
+      </div>
+      <div class="float-img">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='130'%3E%3Crect fill='%231a1a2e' width='200' height='130'/%3E%3Crect fill='%23c9a87c' x='10' y='10' width='85' height='110' rx='8' opacity='0.15'/%3E%3Crect fill='%23e8e6e1' x='105' y='10' width='85' height='50' rx='8' opacity='0.1'/%3E%3Crect fill='%234a4a5a' x='105' y='70' width='85' height='50' rx='8' opacity='0.2'/%3E%3C/svg%3E" alt="">
+      </div>
+      <div class="float-img">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='90'%3E%3Crect fill='%230f3460' width='120' height='90'/%3E%3Cpath d='M20,70 L40,30 L60,50 L80,20 L100,45' fill='none' stroke='%23c9a87c' stroke-width='2'/%3E%3C/svg%3E" alt="">
+      </div>
+      <div class="float-img">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='100'%3E%3Crect fill='%2316213e' width='150' height='100'/%3E%3Ccircle cx='45' cy='50' r='25' fill='%23c9a87c' opacity='0.3'/%3E%3Ccircle cx='105' cy='50' r='25' fill='%23e8e6e1' opacity='0.15'/%3E%3C/svg%3E" alt="">
+      </div>
+    </div>
+
+    <div class="hero-content">
+      <p class="hero-tag">Editor & Visual Storyteller</p>
+      <h1 class="hero-title">
+        Crafting<br><span class="outline">Visual</span> Stories
+      </h1>
+      <p class="hero-sub">Award-winning editor shaping narratives for global brands — turning footage into feeling.</p>
+    </div>
+
+    <div class="scroll-indicator">
+      <span style="font-size:0.7rem; letter-spacing:3px; text-transform:uppercase; color:var(--muted)">Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+  </section>
+
+  <!-- Brands Marquee -->
+  <section class="brands-section">
+    <div class="marquee-track" id="marquee">
+      <span>Google</span><span>•</span>
+      <span>Netflix</span><span>•</span>
+      <span>Apple</span><span>•</span>
+      <span>Nike</span><span>•</span>
+      <span>Spotify</span><span>•</span>
+      <span>Adobe</span><span>•</span>
+      <span>LEGO</span><span>•</span>
+      <span>EA Games</span><span>•</span>
+      <span>Google</span><span>•</span>
+      <span>Netflix</span><span>•</span>
+      <span>Apple</span><span>•</span>
+      <span>Nike</span><span>•</span>
+      <span>Spotify</span><span>•</span>
+      <span>Adobe</span><span>•</span>
+      <span>LEGO</span><span>•</span>
+      <span>EA Games</span><span>•</span>
+    </div>
+  </section>
+
+  <!-- Statement -->
+  <section class="statement" id="about">
+    <p class="statement-text reveal">
+      <span class="highlight">I'm a global experience design editor</span> that helps companies like
+      <span class="brand-name">Google</span>, <span class="brand-name">LEGO</span>,
+      <span class="brand-name">EA</span> and <span class="brand-name">Supercell</span>
+      create <span class="highlight">experiences, services and products</span> that play meaningful roles in people's lives.
+    </p>
+  </section>
+
+  <!-- Projects -->
+  <section class="projects" id="work">
+    <div class="section-header reveal">
+      <div>
+        <p class="section-label">Selected Work</p>
+        <h2 class="section-title">Featured Projects</h2>
+      </div>
+      <span class="project-count">01 — 04</span>
+    </div>
+
+    <div class="projects-grid">
+      <div class="project-card reveal" data-tilt>
+        <img class="project-thumbnail" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500'%3E%3Cdefs%3E%3ClinearGradient id='g1' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230f3460'/%3E%3Cstop offset='1' stop-color='%231a1a2e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g1)' width='800' height='500'/%3E%3Ccircle cx='400' cy='250' r='120' fill='none' stroke='%23c9a87c' stroke-width='1' opacity='0.4'/%3E%3Ccircle cx='400' cy='250' r='80' fill='none' stroke='%23c9a87c' stroke-width='1' opacity='0.3'/%3E%3Ccircle cx='400' cy='250' r='40' fill='%23c9a87c' opacity='0.15'/%3E%3Ctext x='400' y='440' text-anchor='middle' fill='%23c9a87c' font-family='monospace' font-size='14' opacity='0.5'%3EGOOGLE PIXEL — LAUNCH FILM%3C/text%3E%3C/svg%3E" alt="">
+        <div class="project-overlay">
+          <span class="project-year">2026</span>
+          <p class="project-category">Brand Film</p>
+          <h3 class="project-name">Google Pixel — Launch</h3>
+          <p class="project-desc">Hero film for the Pixel 10 global launch campaign. Edited across 3 formats.</p>
+        </div>
+      </div>
+
+      <div class="project-card reveal" data-tilt>
+        <img class="project-thumbnail" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500'%3E%3Cdefs%3E%3ClinearGradient id='g2' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%2316213e'/%3E%3Cstop offset='1' stop-color='%230a0a14'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g2)' width='800' height='500'/%3E%3Crect x='200' y='100' width='400' height='300' rx='20' fill='none' stroke='%23e8e6e1' stroke-width='1' opacity='0.2'/%3E%3Crect x='230' y='140' width='150' height='100' rx='8' fill='%23c9a87c' opacity='0.12'/%3E%3Crect x='420' y='140' width='150' height='100' rx='8' fill='%23c9a87c' opacity='0.08'/%3E%3Crect x='230' y='270' width='340' height='12' rx='6' fill='%23e8e6e1' opacity='0.08'/%3E%3Crect x='230' y='300' width='220' height='12' rx='6' fill='%23e8e6e1' opacity='0.05'/%3E%3C/svg%3E" alt="">
+        <div class="project-overlay">
+          <span class="project-year">2026</span>
+          <p class="project-category">Documentary</p>
+          <h3 class="project-name">LEGO — Rebuild</h3>
+          <p class="project-desc">Short documentary on creativity & sustainability for LEGO's annual report.</p>
+        </div>
+      </div>
+
+      <div class="project-card reveal" data-tilt>
+        <img class="project-thumbnail" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500'%3E%3Cdefs%3E%3ClinearGradient id='g3' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%231a0a2e'/%3E%3Cstop offset='1' stop-color='%230f3460'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g3)' width='800' height='500'/%3E%3Cpolygon points='400,100 550,350 250,350' fill='none' stroke='%23c9a87c' stroke-width='1' opacity='0.3'/%3E%3Cpolygon points='400,150 510,330 290,330' fill='%23c9a87c' opacity='0.06'/%3E%3Ccircle cx='400' cy='260' r='40' fill='%23c9a87c' opacity='0.1'/%3E%3C/svg%3E" alt="">
+        <div class="project-overlay">
+          <span class="project-year">2025</span>
+          <p class="project-category">Game Trailer</p>
+          <h3 class="project-name">EA — Apex Legends</h3>
+          <p class="project-desc">Season 22 cinematic reveal trailer. 40M+ views in first 48 hours.</p>
+        </div>
+      </div>
+
+      <div class="project-card reveal" data-tilt>
+        <img class="project-thumbnail" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500'%3E%3Cdefs%3E%3ClinearGradient id='g4' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%230a1628'/%3E%3Cstop offset='1' stop-color='%231a1a2e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g4)' width='800' height='500'/%3E%3Ccircle cx='300' cy='250' r='100' fill='none' stroke='%23c9a87c' stroke-width='0.5' opacity='0.3'/%3E%3Ccircle cx='500' cy='250' r='100' fill='none' stroke='%23e8e6e1' stroke-width='0.5' opacity='0.2'/%3E%3Ccircle cx='400' cy='250' r='60' fill='%23c9a87c' opacity='0.06'/%3E%3Cline x1='100' y1='400' x2='700' y2='400' stroke='%23c9a87c' stroke-width='0.5' opacity='0.2'/%3E%3C/svg%3E" alt="">
+        <div class="project-overlay">
+          <span class="project-year">2025</span>
+          <p class="project-category">Music Video</p>
+          <h3 class="project-name">Spotify — Wrapped</h3>
+          <p class="project-desc">Directed edit for the annual Wrapped campaign. Multi-platform delivery.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Skills -->
+  <section class="skills-section">
+    <div style="max-width:1200px; margin:0 auto;">
+      <div class="reveal">
+        <p class="section-label">Capabilities</p>
+        <h2 class="section-title">Tools & Expertise</h2>
+      </div>
+    </div>
+
+    <div class="skills-grid">
+      <div class="skill-card">
+        <span class="skill-icon">◆</span>
+        <h3 class="skill-name">Premiere Pro</h3>
+        <p class="skill-detail">Primary NLE for narrative editing, multicam, and long-form content</p>
+        <div class="skill-bar"><div class="skill-fill" style="--level: 95%"></div></div>
+      </div>
+      <div class="skill-card">
+        <span class="skill-icon">◇</span>
+        <h3 class="skill-name">After Effects</h3>
+        <p class="skill-detail">Motion graphics, compositing, and visual effects integration</p>
+        <div class="skill-bar"><div class="skill-fill" style="--level: 90%"></div></div>
+      </div>
+      <div class="skill-card">
+        <span class="skill-icon">△</span>
+        <h3 class="skill-name">DaVinci Resolve</h3>
+        <p class="skill-detail">Color grading, finishing, and delivery mastering</p>
+        <div class="skill-bar"><div class="skill-fill" style="--level: 85%"></div></div>
+      </div>
+      <div class="skill-card">
+        <span class="skill-icon">○</span>
+        <h3 class="skill-name">Sound Design</h3>
+        <p class="skill-detail">Audio mixing, Foley integration, and spatial audio</p>
+        <div class="skill-bar"><div class="skill-fill" style="--level: 80%"></div></div>
+      </div>
+      <div class="skill-card">
+        <span class="skill-icon">□</span>
+        <h3 class="skill-name">Cinema 4D</h3>
+        <p class="skill-detail">3D motion elements and title design for editorial</p>
+        <div class="skill-bar"><div class="skill-fill" style="--level: 75%"></div></div>
+      </div>
+      <div class="skill-card">
+        <span class="skill-icon">▽</span>
+        <h3 class="skill-name">Storytelling</h3>
+        <p class="skill-detail">Narrative structure, pacing, and emotional arc design</p>
+        <div class="skill-bar"><div class="skill-fill" style="--level: 95%"></div></div>
+      </div>
+      <div class="skill-card">
+        <span class="skill-icon">⬡</span>
+        <h3 class="skill-name">Color Theory</h3>
+        <p class="skill-detail">Look development, LUT creation, and scene-to-scene matching</p>
+        <div class="skill-bar"><div class="skill-fill" style="--level: 88%"></div></div>
+      </div>
+      <div class="skill-card">
+        <span class="skill-icon">✦</span>
+        <h3 class="skill-name">Direction</h3>
+        <p class="skill-detail">Creative direction for campaigns, from concept through final cut</p>
+        <div class="skill-bar"><div class="skill-fill" style="--level: 82%"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Experience -->
+  <section class="experience">
+    <div class="reveal">
+      <p class="section-label">Journey</p>
+      <h2 class="section-title">Experience</h2>
+    </div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <p class="timeline-year">2024 — Present</p>
+        <h3 class="timeline-role">Lead Editor</h3>
+        <p class="timeline-company">Framestore — London</p>
+        <p class="timeline-desc">Leading editorial for global brand campaigns. Overseeing a team of 6 editors across commercial, documentary and digital formats.</p>
+      </div>
+      <div class="timeline-item">
+        <p class="timeline-year">2021 — 2024</p>
+        <h3 class="timeline-role">Senior Editor</h3>
+        <p class="timeline-company">MediaMonks — Amsterdam</p>
+        <p class="timeline-desc">Edited hero content for Google, EA, and Supercell. Specialized in high-paced game trailers and immersive brand storytelling.</p>
+      </div>
+      <div class="timeline-item">
+        <p class="timeline-year">2019 — 2021</p>
+        <h3 class="timeline-role">Editor / Colorist</h3>
+        <p class="timeline-company">Studio Melt — Berlin</p>
+        <p class="timeline-desc">Delivered end-to-end post for indie films, music videos, and emerging brand projects.</p>
+      </div>
+      <div class="timeline-item">
+        <p class="timeline-year">2017 — 2019</p>
+        <h3 class="timeline-role">Junior Editor</h3>
+        <p class="timeline-company">Cutters — Chicago</p>
+        <p class="timeline-desc">Learned craft fundamentals on national broadcast spots and digital campaigns for Fortune 500 clients.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Showreel -->
+  <section class="showreel" id="reel">
+    <div class="reveal">
+      <p class="section-label">Watch</p>
+      <h2 class="section-title">Showreel 2026</h2>
+    </div>
+    <div class="reel-container reveal">
+      <div class="reel-placeholder">
+        <div class="play-btn magnetic">
+          <svg viewBox="0 0 24 24"><polygon points="8,5 19,12 8,19"/></svg>
+        </div>
+        <p class="reel-label">Play Showreel — 02:34</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section class="contact" id="contact">
+    <div class="reveal">
+      <p class="section-label">Get in Touch</p>
+      <h1 class="contact-title">Let's create<br>something <span class="accent">together</span></h1>
+      <p class="contact-email"><a href="#">hello@kael.studio</a></p>
+      <div class="social-links">
+        <a href="#">Vimeo</a>
+        <a href="#">Instagram</a>
+        <a href="#">LinkedIn</a>
+        <a href="#">Behance</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <span>© 2026 Kael. All rights reserved.</span>
+    <span>Based in London, working globally</span>
+  </footer>
+
+  <script>
+    // ===== PRELOADER =====
+    const preloaderFill = document.querySelector('.preloader-fill');
+    const preloader = document.querySelector('.preloader');
+    let progress = 0;
+    const loadInterval = setInterval(() => {
+      progress += Math.random() * 25 + 5;
+      if (progress >= 100) {
+        progress = 100;
+        preloaderFill.style.width = '100%';
+        clearInterval(loadInterval);
+        setTimeout(() => preloader.classList.add('hidden'), 400);
+      } else {
+        preloaderFill.style.width = progress + '%';
+      }
+    }, 200);
+
+    // ===== CUSTOM CURSOR =====
+    const cursor = document.querySelector('.cursor');
+    const cursorDot = document.querySelector('.cursor-dot');
+    let mouseX = 0, mouseY = 0;
+    let cursorX = 0, cursorY = 0;
+    let dotX = 0, dotY = 0;
+
+    document.addEventListener('mousemove', e => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    function animateCursor() {
+      cursorX += (mouseX - cursorX) * 0.12;
+      cursorY += (mouseY - cursorY) * 0.12;
+      dotX += (mouseX - dotX) * 0.6;
+      dotY += (mouseY - dotY) * 0.6;
+      cursor.style.left = cursorX + 'px';
+      cursor.style.top = cursorY + 'px';
+      cursorDot.style.left = dotX + 'px';
+      cursorDot.style.top = dotY + 'px';
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
+    // Cursor hover states
+    const hoverElements = document.querySelectorAll('a, .project-card, .play-btn, .skill-card, .magnetic');
+    hoverElements.forEach(el => {
+      el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+      el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+    });
+
+    // ===== 3D BACKGROUND PARTICLES (Canvas) =====
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+    const particles = [];
+    const PARTICLE_COUNT = 80;
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * W;
+        this.y = Math.random() * H;
+        this.z = Math.random() * 1000;
+        this.baseX = this.x;
+        this.baseY = this.y;
+        this.vx = (Math.random() - 0.5) * 0.3;
+        this.vy = (Math.random() - 0.5) * 0.3;
+        this.vz = -Math.random() * 0.5 - 0.2;
+        this.size = Math.random() * 2 + 0.5;
+        this.alpha = Math.random() * 0.4 + 0.1;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.z += this.vz;
+
+        // Mouse repulsion
+        const dx = this.x - mouseX;
+        const dy = this.y - mouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          const force = (150 - dist) / 150;
+          this.x += dx * force * 0.02;
+          this.y += dy * force * 0.02;
+        }
+
+        if (this.z < 1 || this.x < -50 || this.x > W + 50 || this.y < -50 || this.y > H + 50) {
+          this.reset();
+          this.z = 1000;
+        }
+      }
+      draw() {
+        const scale = 600 / (600 + this.z);
+        const screenX = (this.x - W / 2) * scale + W / 2;
+        const screenY = (this.y - H / 2) * scale + H / 2;
+        const r = this.size * scale;
+        const alpha = this.alpha * scale;
+
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(201, 168, 124, ${alpha})`;
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push(new Particle());
+    }
+
+    // Draw connections
+    function drawConnections() {
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 180) {
+            const alpha = (1 - dist / 180) * 0.08;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(201, 168, 124, ${alpha})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function animateCanvas() {
+      ctx.clearRect(0, 0, W, H);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      drawConnections();
+      requestAnimationFrame(animateCanvas);
+    }
+    animateCanvas();
+
+    // ===== FLOATING IMAGES PARALLAX =====
+    const floatImgs = document.querySelectorAll('.float-img');
+    document.addEventListener('mousemove', e => {
+      const cx = (e.clientX / W - 0.5) * 2;
+      const cy = (e.clientY / H - 0.5) * 2;
+      floatImgs.forEach((img, i) => {
+        const depth = (i + 1) * 12;
+        const rotX = cy * (i + 1) * 2;
+        const rotY = cx * (i + 1) * 2;
+        img.style.transform = `translate(${cx * depth}px, ${cy * depth}px) rotate3d(1, 1, 0, ${rotX}deg) scale(${1 + Math.abs(cx) * 0.05})`;
+      });
+    });
+
+    // ===== SCROLL ANIMATIONS =====
+    const revealElements = document.querySelectorAll('.reveal, .timeline-item, .skill-card');
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, i * 100);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    revealElements.forEach(el => revealObserver.observe(el));
+
+    // ===== MAGNETIC EFFECT =====
+    document.querySelectorAll('.magnetic').forEach(el => {
+      el.addEventListener('mousemove', e => {
+        const rect = el.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        el.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px)`;
+      });
+      el.addEventListener('mouseleave', () => {
+        el.style.transform = 'translate(0, 0)';
+      });
+    });
+
+    // ===== PROJECT CARD 3D TILT =====
+    document.querySelectorAll('[data-tilt]').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        const rotX = (y - 0.5) * -10;
+        const rotY = (x - 0.5) * 10;
+        card.style.transform = `perspective(800px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale(1)';
+      });
+    });
+
+    // ===== SMOOTH SCROLL PARALLAX =====
+    let scrollY = 0;
+    window.addEventListener('scroll', () => {
+      scrollY = window.pageYOffset;
+      // Parallax hero content
+      const heroContent = document.querySelector('.hero-content');
+      if (heroContent) {
+        heroContent.style.transform = `translateY(${scrollY * 0.3}px)`;
+        heroContent.style.opacity = 1 - scrollY / 600;
+      }
+      // Parallax floating images
+      floatImgs.forEach((img, i) => {
+        const speed = 0.1 + i * 0.05;
+        img.style.marginTop = `${scrollY * speed}px`;
+      });
+    });
+
+    // ===== STATEMENT TEXT REVEAL =====
+    const statementText = document.querySelector('.statement-text');
+    if (statementText) {
+      const words = statementText.innerHTML.split(/(\s+|<[^>]+>)/);
+      // Keep HTML tags intact — just animate opacity on scroll
+      const stObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.style.transition = 'color 1.2s ease';
+            entry.target.style.color = 'var(--text)';
+          }
+        });
+      }, { threshold: 0.5 });
+      stObserver.observe(statementText);
+    }
+
+    // ===== NAV LINK SMOOTH SCROLL =====
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // ===== PLAY BUTTON INTERACTION =====
+    const playBtn = document.querySelector('.play-btn');
+    if (playBtn) {
+      playBtn.addEventListener('click', () => {
+        const container = playBtn.closest('.reel-placeholder');
+        container.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;flex-direction:column;">
+            <div style="width:80px;height:80px;border:2px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;">
+              <span style="font-size:1.5rem;color:var(--accent)">▶</span>
+            </div>
+            <p style="margin-top:20px;color:var(--muted);font-size:0.85rem;">Showreel loading...</p>
+          </div>
+        `;
+      });
+    }
+
+    // ===== DYNAMIC BACKGROUND GRADIENT ON SCROLL =====
+    window.addEventListener('scroll', () => {
+      const scrollPercent = scrollY / (document.body.scrollHeight - window.innerHeight);
+      const hue = 220 + scrollPercent * 20;
+      document.body.style.background = `hsl(${hue}, 30%, 5%)`;
+    });
+  </script>
+</body>
+</html>
