@@ -609,7 +609,12 @@ const FilesPage = () => {
         );
         const title = prompt.slice(0, 80);
         const thumb = await captureThumb(out.html, `file-${convId || out.id}`);
-        const summary = `Created "${title}"`;
+        const summary = await aiSummary({
+          kind: "slides", title, prompt,
+          templateName: selectedTemplate?.name || "",
+          slideCount,
+          fallback: `Created "${title}"`,
+        });
         setMessages(prev => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
