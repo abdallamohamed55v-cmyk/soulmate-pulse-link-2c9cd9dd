@@ -84,10 +84,17 @@ async function streamSlidesGeneration(
       templateName: tpl.name,
       templateFolder: tpl.folder,
       templateHtml,
+      category: tpl.category,
     }),
     signal,
   });
-  if (!res.ok || !res.body) throw new Error(`Generation failed (${res.status})`);
+  if (!res.ok || !res.body) {
+    if (res.status === 429) {
+      const j = await res.json().catch(() => ({} as any));
+      throw new Error(j?.message || "وصلت إلى حد القوالب Premium اليومي");
+    }
+    throw new Error(`Generation failed (${res.status})`);
+  }
 
   const reader = res.body.getReader();
   const dec = new TextDecoder();
