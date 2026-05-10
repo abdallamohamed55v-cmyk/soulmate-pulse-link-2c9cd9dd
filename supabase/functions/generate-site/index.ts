@@ -137,6 +137,53 @@ function compressTemplate(html: string, maxChars = 9000): string {
   return out;
 }
 
+function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: string }>, imageQuery: string): string {
+  let out = html.trim();
+  if (!/^\s*<!doctype/i.test(out) && !/^\s*<html/i.test(out)) out = `<!DOCTYPE html>\n${out}`;
+
+  out = out.replace(/<header\b[\s\S]*?<\/header>/gi, "");
+  out = out.replace(/<nav\b[\s\S]*?<\/nav>/gi, "");
+  out = out.replace(/<footer\b[\s\S]*?<\/footer>/gi, "");
+  out = out.replace(/<button\b[\s\S]*?<\/button>/gi, "");
+  out = out.replace(/<a\b(?![^>]*href=["']#)[\s\S]*?<\/a>/gi, "");
+
+  const fallbackImages = images.length ? images : Array.from({ length: 12 }, (_, i) => ({
+    url: `https://source.unsplash.com/1600x900/?${encodeURIComponent(imageQuery)},editorial,${i}`,
+    alt: imageQuery,
+  }));
+  let imageIndex = 0;
+  out = out.replace(/<img\b([^>]*?)>/gi, (match, attrs) => {
+    const picked = fallbackImages[imageIndex % fallbackImages.length];
+    imageIndex++;
+    const cleanedAttrs = String(attrs)
+      .replace(/\s(?:src|srcset|data-src|data-lazy-src|alt)=("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+      .replace(/\sloading=("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+    const alt = String(picked.alt || imageQuery).replace(/"/g, "&quot;");
+    return `<img${cleanedAttrs} src="${picked.url}" alt="${alt}" loading="lazy">`;
+  });
+
+  const imgCount = (out.match(/<img\b/gi) || []).length;
+  if (imgCount < 8 && /<\/body>/i.test(out)) {
+    const needed = 8 - imgCount;
+    const gallery = `<section class="slide-media-gallery" style="padding:8rem 6vw;display:grid;gap:2rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">${Array.from({ length: needed }, (_, i) => {
+      const picked = fallbackImages[(imageIndex + i) % fallbackImages.length];
+      const alt = String(picked.alt || imageQuery).replace(/"/g, "&quot;");
+      return `<figure style="margin:0;aspect-ratio:16/10;overflow:hidden;border-radius:24px;"><img src="${picked.url}" alt="${alt}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;"></figure>`;
+    }).join("")}</section>`;
+    out = out.replace(/<\/body>/i, `${gallery}\n</body>`);
+  }
+
+  const sectionCount = (out.match(/<section\b/gi) || []).length;
+  if (sectionCount < 10 && /<\/body>/i.test(out)) {
+    const extra = Array.from({ length: 10 - sectionCount }, (_, i) => `<section class="slide-content-block" style="min-height:70vh;padding:8rem 6vw;display:grid;align-content:center;gap:1.5rem;"><p style="letter-spacing:.18em;text-transform:uppercase;opacity:.65;margin:0;">${String(i + 1).padStart(2, "0")}</p><h2 style="font-size:clamp(3rem,8vw,8rem);line-height:.95;margin:0;">Key Perspective ${i + 1}</h2><p style="font-size:clamp(1.1rem,2vw,1.6rem);line-height:1.65;max-width:900px;margin:0;opacity:.82;">This section expands the deck with a clear structured argument, practical context, measurable signals, and a concise takeaway that keeps the narrative complete and presentation-ready.</p></section>`).join("\n");
+    out = out.replace(/<\/body>/i, `${extra}\n</body>`);
+  }
+
+  const hardeningCss = `<style id="megsy-slide-hardening">html,body{min-height:100%;}img{max-width:100%;height:auto;}section{position:relative;}header,nav,footer,button{display:none!important;}</style>`;
+  out = /<\/head>/i.test(out) ? out.replace(/<\/head>/i, `${hardeningCss}\n</head>`) : out.replace(/<body/i, `<head>${hardeningCss}</head><body`);
+  return out;
+}
+
 
 
 Deno.serve(async (req) => {
