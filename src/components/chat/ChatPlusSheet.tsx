@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
-import { Image as ImageIcon, Video, Mic, Code2, FileText, Camera, FileUp, Globe, Sparkles, ChevronRight } from "lucide-react";
+import { Image as ImageIcon, Camera, FileUp, Globe, Atom, Wrench, Lightbulb, ChevronRight } from "lucide-react";
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
