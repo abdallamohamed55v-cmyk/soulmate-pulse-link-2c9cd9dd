@@ -152,15 +152,24 @@ async function fetchImagesFromPexels(query: string): Promise<Array<{ url: string
 }
 
 async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
-  const baseQuery = buildImageQuery(prompt);
-  // Prefer Firecrawl (live web search), fall back to Pexels, then picsum.
-  const fc = await fetchImagesFromFirecrawl(baseQuery);
-  if (fc.length >= 8) return fc;
-  const px = await fetchImagesFromPexels(baseQuery);
-  const merged = [...fc, ...px.filter((p) => !fc.find((c) => c.url === p.url))];
+  const original = buildImageQuery(prompt);
+  const isArabic = /[\u0600-\u06FF]/.test(prompt);
+  const [fcOriginal, englishKeywords] = await Promise.all([
+    fetchImagesFromFirecrawl(original),
+    isArabic ? translateToImageKeywords(prompt) : Promise.resolve(""),
+  ]);
+  let collected = fcOriginal;
+  if (collected.length < 10 && englishKeywords) {
+    const fcEn = await fetchImagesFromFirecrawl(englishKeywords);
+    collected = [...collected, ...fcEn.filter((p) => !collected.find((c) => c.url === p.url))];
+  }
+  if (collected.length >= 10) return collected.slice(0, 18);
+  const pxQuery = englishKeywords || original;
+  const px = await fetchImagesFromPexels(pxQuery);
+  const merged = [...collected, ...px.filter((p) => !collected.find((c) => c.url === p.url))];
   while (merged.length < 14) {
     const seed = Math.floor(Math.random() * 100000) + merged.length;
-    merged.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: baseQuery });
+    merged.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: pxQuery });
   }
   return merged.slice(0, 18);
 }
