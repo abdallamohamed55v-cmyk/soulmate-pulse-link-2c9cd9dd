@@ -100,6 +100,16 @@ async function streamSlidesGeneration(
   const dec = new TextDecoder();
   let buf = "", jsx = "", siteId = "", lastStep = "";
   let charsSinceStep = 0;
+  let phaseIdx = 0;
+  const PHASES = [
+    "Drafting outline",
+    "Writing content",
+    "Composing layout",
+    "Adding visuals",
+    "Refining sections",
+    "Polishing details",
+    "Finalizing",
+  ];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -123,9 +133,10 @@ async function streamSlidesGeneration(
         if (p.delta) {
           jsx += p.delta;
           charsSinceStep += p.delta.length;
-          if (charsSinceStep > 800) {
+          if (charsSinceStep > 2800) {
             charsSinceStep = 0;
-            const msg = `✍️ Writing... (${jsx.length.toLocaleString()} chars)`;
+            const msg = PHASES[phaseIdx % PHASES.length];
+            phaseIdx++;
             if (msg !== lastStep) { onStatus(msg); onStep(msg); lastStep = msg; }
           }
         }
