@@ -71,6 +71,49 @@ function stripEmojis(html: string): string {
   return html.replace(/[\u{1F300}-\u{1FAFF}]|[\u{2600}-\u{27BF}]|[\u{2B00}-\u{2BFF}]|[\u{1F000}-\u{1F2FF}]/gu, "");
 }
 
+function buildImageQuery(prompt: string): string {
+  const lower = prompt.toLowerCase();
+  const mapped: string[] = [];
+  const pairs: Array<[RegExp, string]> = [
+    [/مصر|egypt|القاهرة|الاهرام|الأهرام|نيل|النيل/, "Egypt Cairo Nile pyramids"],
+    [/سعود|رياض|جدة|saudi|riyadh/, "Saudi Arabia Riyadh architecture"],
+    [/دبي|امارات|الإمارات|dubai|uae/, "Dubai skyline business"],
+    [/تعليم|مدرس|جامعة|طلاب|education|school|university/, "education students classroom"],
+    [/طب|صحة|مستشفى|medical|health|hospital/, "healthcare hospital doctors"],
+    [/عقار|مباني|معمار|real estate|architecture/, "modern architecture real estate"],
+    [/مطعم|اكل|أكل|food|restaurant/, "restaurant food kitchen"],
+    [/موضة|ازياء|أزياء|fashion/, "fashion editorial model"],
+    [/تقنية|ذكاء|ai|technology|software|startup/, "artificial intelligence technology workspace"],
+    [/بيئة|زراعة|طاقة|environment|farm|energy/, "renewable energy nature agriculture"],
+    [/سياحة|سفر|travel|tourism/, "travel destination landscape"],
+    [/مال|بنك|استثمار|finance|bank|investment/, "finance business investment"],
+  ];
+  for (const [re, q] of pairs) if (re.test(lower)) mapped.push(q);
+  const latin = prompt.match(/[a-zA-Z][a-zA-Z\s-]{2,}/g)?.join(" ").trim() || "";
+  const base = [mapped.join(" "), latin].filter(Boolean).join(" ").trim();
+  return (base || "professional editorial documentary").slice(0, 180);
+}
+
+async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
+  const apiKey = Deno.env.get("PEXELS_API_KEY");
+  if (!apiKey) return [];
+  try {
+    const url = new URL("https://api.pexels.com/v1/search");
+    url.searchParams.set("query", buildImageQuery(prompt));
+    url.searchParams.set("per_page", "12");
+    url.searchParams.set("orientation", "landscape");
+    const resp = await fetch(url.toString(), { headers: { Authorization: apiKey } });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return ((data?.photos || []) as any[]).map((p) => ({
+      url: p?.src?.large2x || p?.src?.large || p?.src?.original,
+      alt: p?.alt || buildImageQuery(prompt),
+    })).filter((p) => p.url).slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Compress a full template HTML down to its visual DNA so we don't ship
  * 100KB+ of markup to the model. We keep <head> CSS / fonts / scripts and
