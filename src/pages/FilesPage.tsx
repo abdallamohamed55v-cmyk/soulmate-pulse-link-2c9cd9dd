@@ -203,6 +203,13 @@ const KINDS: { id: Kind; label: string; hasTemplates?: boolean }[] = [
 const DEFAULT_SLIDES_TEMPLATE = DEFAULT_LANDING_TEMPLATE;
 
 /** Clean, brand-safe rephrasing of raw status events from the generator. */
+function stripEmoji(raw: string): string {
+  return (raw || "")
+    .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u2600-\u27BF\uFE0F]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function humanizeStatus(raw: string): string {
   const s = (raw || "").trim();
   if (!s) return "Warming up";
@@ -973,12 +980,12 @@ const FilesPage = () => {
                           {m.status ? (
                             <div className="space-y-1.5 py-1">
                               <p className="text-base font-extrabold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
-                                {m.status}…
+                                {stripEmoji(m.status)}…
                               </p>
                               {m.report && m.report.length > 1 && (
                                 <ul className="pl-1 space-y-0.5 text-xs text-muted-foreground">
                                   {m.report.slice(0, -1).slice(-3).map((s, idx) => (
-                                    <li key={idx} className="truncate font-semibold">{s}</li>
+                                    <li key={idx} className="truncate font-semibold">{stripEmoji(s)}</li>
                                   ))}
                                 </ul>
                               )}
