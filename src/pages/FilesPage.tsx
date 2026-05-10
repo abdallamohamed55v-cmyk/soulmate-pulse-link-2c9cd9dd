@@ -1114,13 +1114,43 @@ const FilesPage = () => {
 
                                         <Eye className="h-4 w-4" />
                                       </button>
-                                      <button
-                                        onClick={() => handleDownload(m)}
-                                        className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center"
-                                        aria-label="Download"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                      </button>
+                                      {m.doc?.kind === "slides" ? (
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <button
+                                              className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center"
+                                              aria-label="Download"
+                                            >
+                                              <Download className="h-4 w-4" />
+                                            </button>
+                                          </PopoverTrigger>
+                                          <PopoverContent align="end" className="w-44 p-1.5 rounded-2xl">
+                                            <button
+                                              onClick={() => handleDownload(m, "pptx")}
+                                              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-foreground/5 text-sm text-left"
+                                            >
+                                              <Download className="h-4 w-4" />
+                                              <span>PowerPoint (.pptx)</span>
+                                            </button>
+                                            <button
+                                              onClick={() => handleDownload(m, "html")}
+                                              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-foreground/5 text-sm text-left"
+                                            >
+                                              <Download className="h-4 w-4" />
+                                              <span>Web page (.html)</span>
+                                            </button>
+                                          </PopoverContent>
+                                        </Popover>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleDownload(m, "html")}
+                                          className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center"
+                                          aria-label="Download"
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </button>
+                                      )}
+
                                     </div>
                                   </div>
                                 </div>
