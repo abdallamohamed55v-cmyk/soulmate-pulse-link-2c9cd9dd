@@ -22,55 +22,133 @@ const SECTION_HINTS: Record<Kind, string> = {
   resume:   "Header (Name, Title, Contact), Summary, Experience (job, dates, bullets), Education, Skills (chips), Languages.",
 };
 
-function fontFor(kind: Kind, style: any): string {
-  if (style?.fontFamily) return style.fontFamily;
-  if (kind === "resume") return "'Inter', system-ui, sans-serif";
-  if (kind === "report") return "'Source Serif 4', Georgia, serif";
-  if (kind === "letter") return "'Georgia', 'Times New Roman', serif";
-  return "'Inter', system-ui, sans-serif";
+function fontFor(kind: Kind, style: any): { heading: string; body: string } {
+  if (style?.fontFamily) return { heading: style.fontFamily, body: style.fontFamily };
+  if (kind === "resume") return { heading: "'Sora', 'Inter', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif" };
+  if (kind === "report") return { heading: "'Fraunces', 'Source Serif 4', Georgia, serif", body: "'Inter', system-ui, sans-serif" };
+  if (kind === "letter") return { heading: "'Fraunces', 'Cormorant Garamond', Georgia, serif", body: "'Inter', system-ui, sans-serif" };
+  return { heading: "'Space Grotesk', 'Inter', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif" };
 }
 
-function accentFor(id: string): string {
+function accentFor(id: string): { a: string; b: string } {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return `hsl(${h % 360}, 70%, 45%)`;
+  const hue = h % 360;
+  return { a: `hsl(${hue}, 85%, 56%)`, b: `hsl(${(hue + 40) % 360}, 90%, 62%)` };
 }
 
 function buildHtmlShell(inner: string, kind: Kind, template: any): string {
-  const accent = template?.style?.accent || accentFor(template?.id || kind);
-  const font   = fontFor(kind, template?.style || {});
+  const palette = template?.style?.accent
+    ? { a: template.style.accent, b: template?.style?.accent2 || template.style.accent }
+    : accentFor(template?.id || kind);
+  const fonts = fontFor(kind, template?.style || {});
+  const title = (template?.name || kind).toString().replace(/</g, "");
   return `<!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>${(template?.name || kind).toString().replace(/</g, "")}</title>
+<title>${title}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Sora:wght@500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-:root { --accent: ${accent}; }
+:root {
+  --accent: ${palette.a};
+  --accent-2: ${palette.b};
+  --ink: #0a0a0f;
+  --ink-soft: #3f3f46;
+  --muted: #71717a;
+  --line: rgba(0,0,0,.08);
+  --bg: #f6f5f2;
+  --card: #ffffff;
+  --grad: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  --grad-soft: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, transparent), color-mix(in srgb, var(--accent-2) 10%, transparent));
+  --radius: 24px;
+  --shadow: 0 1px 2px rgba(10,10,15,.04), 0 24px 60px -20px rgba(10,10,15,.18);
+  --font-h: ${fonts.heading};
+  --font-b: ${fonts.body};
+}
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: #f4f4f5; color: #18181b; font-family: ${font}; line-height: 1.65; }
-.page { max-width: 820px; margin: 24px auto; padding: 64px 72px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 32px rgba(0,0,0,.04); border-radius: 4px; }
-h1 { font-size: 32px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.02em; }
-h2 { font-size: 22px; font-weight: 600; margin: 32px 0 10px; color: #111; border-bottom: 2px solid var(--accent); padding-bottom: 6px; display: inline-block; }
-h3 { font-size: 17px; font-weight: 600; margin: 20px 0 6px; }
-p  { margin: 0 0 12px; }
-ul, ol { margin: 0 0 14px; padding-left: 22px; }
-li { margin-bottom: 4px; }
-a { color: var(--accent); }
-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
-th, td { border: 1px solid #e4e4e7; padding: 8px 10px; text-align: left; }
-th { background: #fafafa; font-weight: 600; }
-blockquote { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; color: #444; margin: 14px 0; }
-.meta { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
-.signature { margin-top: 48px; }
-.skills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
-.skills span { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 500; }
-.experience-item { margin-bottom: 18px; }
-.experience-item .role { font-weight: 600; }
-.experience-item .dates { color: #6b7280; font-size: 13px; }
-hr { border: none; border-top: 1px solid #e4e4e7; margin: 24px 0; }
-@media print { body { background: #fff; } .page { box-shadow: none; margin: 0; padding: 48px; max-width: 100%; border-radius: 0; } }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: var(--font-b); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(60% 50% at 12% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%),
+    radial-gradient(50% 40% at 100% 100%, color-mix(in srgb, var(--accent-2) 15%, transparent), transparent 70%);
+}
+.page {
+  position: relative; z-index: 1;
+  max-width: 880px; margin: 40px auto; padding: 72px 72px 88px;
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.page::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 6px; background: var(--grad);
+}
+h1 {
+  font-family: var(--font-h);
+  font-size: clamp(38px, 5vw, 56px); font-weight: 700; line-height: 1.05;
+  letter-spacing: -0.035em; margin: 0 0 18px;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+h2 {
+  font-family: var(--font-h);
+  font-size: 26px; font-weight: 700; margin: 44px 0 14px; color: var(--ink);
+  letter-spacing: -0.02em; position: relative; padding-left: 18px;
+}
+h2::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px;
+  background: var(--grad); border-radius: 4px;
+}
+h3 { font-family: var(--font-h); font-size: 19px; font-weight: 600; margin: 24px 0 8px; letter-spacing: -0.01em; }
+p  { margin: 0 0 14px; color: var(--ink-soft); font-size: 16.5px; }
+strong { color: var(--ink); }
+ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--ink-soft); }
+li { margin-bottom: 6px; }
+li::marker { color: var(--accent); }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+a:hover { border-bottom-color: var(--accent); }
+table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 18px 0; font-size: 14.5px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+th { background: var(--grad-soft); font-weight: 600; color: var(--ink); }
+tr:last-child td { border-bottom: none; }
+blockquote {
+  margin: 20px 0; padding: 18px 22px; border-radius: 14px;
+  background: var(--grad-soft);
+  border-left: 4px solid var(--accent);
+  font-family: var(--font-h); font-size: 18px; color: var(--ink); font-style: italic;
+}
+hr { border: none; border-top: 1px dashed var(--line); margin: 32px 0; }
+.meta { color: var(--muted); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 14px; font-weight: 600; }
+.signature { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); font-family: var(--font-h); font-size: 18px; color: var(--ink); }
+.skills { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 18px; padding: 0; list-style: none; }
+.skills span, .skills li {
+  background: var(--grad-soft); color: var(--ink);
+  padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.experience-item {
+  margin-bottom: 22px; padding: 20px 22px; border-radius: 16px;
+  background: #fafaf9; border: 1px solid var(--line);
+}
+.experience-item .role { font-family: var(--font-h); font-weight: 700; font-size: 17px; color: var(--ink); }
+.experience-item .dates { color: var(--muted); font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+[dir="rtl"] h2 { padding-left: 0; padding-right: 18px; }
+[dir="rtl"] h2::before { left: auto; right: 0; }
+[dir="rtl"] ul, [dir="rtl"] ol { padding-left: 0; padding-right: 22px; }
+[dir="rtl"] blockquote { border-left: none; border-right: 4px solid var(--accent); }
+@media (max-width: 720px) {
+  .page { margin: 16px; padding: 40px 28px 56px; border-radius: 18px; }
+  h1 { font-size: 34px; }
+  h2 { font-size: 22px; }
+}
+@media print {
+  body { background: #fff; }
+  body::before { display: none; }
+  .page { box-shadow: none; margin: 0; padding: 48px; max-width: 100%; border-radius: 0; border: none; }
+  h1 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 </style>
 </head><body><article class="page">${inner}</article></body></html>`;
 }
