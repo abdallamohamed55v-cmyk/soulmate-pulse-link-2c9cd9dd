@@ -71,36 +71,30 @@ function stripEmojis(html: string): string {
   return html.replace(/[\u{1F300}-\u{1FAFF}]|[\u{2600}-\u{27BF}]|[\u{2B00}-\u{2BFF}]|[\u{1F000}-\u{1F2FF}]/gu, "");
 }
 
-/** Lightweight web-search to ground the slides in fresh facts. */
-async function researchTopic(prompt: string, key: string): Promise<string> {
-  try {
-    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash:online",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a research assistant. Given a slide-deck topic, search the web and return a tight, factual brief (under 1200 words) with: key facts, current numbers/statistics with sources, 3-5 notable examples or case studies, and a recommended outline of 8-12 sections. Plain text only, no markdown.",
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-      }),
-    });
-    if (!r.ok) return "";
-    const j = await r.json();
-    return String(j.choices?.[0]?.message?.content || "").slice(0, 6000);
-  } catch {
-    return "";
-  }
+/**
+ * Compress a full template HTML down to its visual DNA so we don't ship
+ * 100KB+ of markup to the model. We keep <head> CSS / fonts / scripts and
+ * a small body sample so the model can mimic the design system, then it
+ * generates fresh long-form content from scratch.
+ */
+function compressTemplate(html: string, maxChars = 9000): string {
+  if (!html) return "";
+  if (html.length <= maxChars) return html;
+
+  const headMatch = html.match(/<head[^>]*>[\s\S]*?<\/head>/i);
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const head = headMatch ? headMatch[0] : "";
+  const bodyOpen = (html.match(/<body[^>]*>/i) || [""])[0] || "<body>";
+  const bodyInner = bodyMatch ? bodyMatch[1] : html;
+
+  // Take just the first ~3500 chars of body (likely hero + first section).
+  const bodySample = bodyInner.slice(0, Math.max(2000, maxChars - head.length - 400));
+  let out = `${head}\n${bodyOpen}\n${bodySample}\n<!-- ...content omitted: model must expand into 12-20 sections... -->\n</body></html>`;
+  if (out.length > maxChars) out = out.slice(0, maxChars) + "\n<!-- truncated -->";
+  return out;
 }
+
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
