@@ -1209,7 +1209,7 @@ interface AttachButtonProps {
   toolsLabel?: string;
 }
 
-const AttachButton = ({ attached, setAttached, onTools, toolsLabel = "Templates" }: AttachButtonProps) => {
+const AttachButton = ({ attached, setAttached }: AttachButtonProps) => {
   const [open, setOpen] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -1220,7 +1220,7 @@ const AttachButton = ({ attached, setAttached, onTools, toolsLabel = "Templates"
     const next: AttachedFile[] = [];
     for (const f of Array.from(files)) {
       if (f.size > 20 * 1024 * 1024) {
-        toast.error(`${f.name} أكبر من 20MB`);
+        toast.error(`${f.name} is larger than 20MB`);
         continue;
       }
       next.push({
@@ -1231,23 +1231,9 @@ const AttachButton = ({ attached, setAttached, onTools, toolsLabel = "Templates"
     }
     if (next.length > 0) {
       setAttached((prev) => [...prev, ...next].slice(0, 10));
-      toast.success(`تمت إضافة ${next.length} ملف`);
+      toast.success(`Added ${next.length} file${next.length > 1 ? "s" : ""}`);
     }
-    setOpen(false);
   };
-
-  const Item = ({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-foreground/5 active:scale-[0.98] transition text-left"
-    >
-      <span className="h-9 w-9 rounded-full flex items-center justify-center bg-foreground/5 text-foreground">
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="text-[14px] font-medium text-foreground">{label}</span>
-    </button>
-  );
 
   return (
     <>
@@ -1258,33 +1244,25 @@ const AttachButton = ({ attached, setAttached, onTools, toolsLabel = "Templates"
       <input ref={fileInputRef}   type="file" multiple hidden
              onChange={(e) => addFiles(e.target.files)} />
 
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label="Attach"
-            className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition"
-            style={glassChip}
-          >
-            <Plus className={`h-4 w-4 transition-transform ${open ? "rotate-45" : ""}`} />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          side="top" align="start" sideOffset={10}
-          className="w-64 p-1.5 rounded-2xl border-border/50"
-          style={glassSurface}
-        >
-          <Item icon={ImageIcon} label="مكتبة الصور"   onClick={() => photoInputRef.current?.click()} />
-          <Item icon={Camera}    label="الكاميرا"      onClick={() => cameraInputRef.current?.click()} />
-          <Item icon={Paperclip} label="الملفات"        onClick={() => fileInputRef.current?.click()} />
-          {onTools && (
-            <>
-              <div className="my-1 mx-3 h-px bg-foreground/8" />
-              <Item icon={Wand2} label={toolsLabel} onClick={() => { setOpen(false); onTools(); }} />
-            </>
-          )}
-        </PopoverContent>
-      </Popover>
+      <button
+        type="button"
+        aria-label="Attach"
+        onClick={() => setOpen(true)}
+        className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition"
+        style={glassChip}
+      >
+        <Plus className={`h-4 w-4 transition-transform ${open ? "rotate-45" : ""}`} />
+      </button>
+
+      <ChatPlusSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        onCamera={() => cameraInputRef.current?.click()}
+        onPhotos={() => photoInputRef.current?.click()}
+        onFiles={() => fileInputRef.current?.click()}
+        searchEnabled={false}
+        onToggleSearch={() => {}}
+      />
     </>
   );
 };
