@@ -146,7 +146,7 @@ type Kind =
   | "slides" | "document" | "resume" | "report"
   | "spreadsheet" | "letter" | "roadmap" | "mindmap" | "timeline";
 
-interface Template { type: Kind; id: string; name: string; description?: string; preview?: string; style?: string; order?: number; folder?: string; }
+interface Template { type: Kind; id: string; name: string; description?: string; preview?: string; style?: string; order?: number; folder?: string; category?: "premium" | "standard"; }
 interface DocsDoc { kind: Kind; template?: string; title?: string; [k: string]: any; }
 
 interface ChatMsg {
