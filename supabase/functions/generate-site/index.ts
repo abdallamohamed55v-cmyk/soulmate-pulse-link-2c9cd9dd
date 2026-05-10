@@ -71,6 +71,49 @@ function stripEmojis(html: string): string {
   return html.replace(/[\u{1F300}-\u{1FAFF}]|[\u{2600}-\u{27BF}]|[\u{2B00}-\u{2BFF}]|[\u{1F000}-\u{1F2FF}]/gu, "");
 }
 
+function buildImageQuery(prompt: string): string {
+  const lower = prompt.toLowerCase();
+  const mapped: string[] = [];
+  const pairs: Array<[RegExp, string]> = [
+    [/مصر|egypt|القاهرة|الاهرام|الأهرام|نيل|النيل/, "Egypt Cairo Nile pyramids"],
+    [/سعود|رياض|جدة|saudi|riyadh/, "Saudi Arabia Riyadh architecture"],
+    [/دبي|امارات|الإمارات|dubai|uae/, "Dubai skyline business"],
+    [/تعليم|مدرس|جامعة|طلاب|education|school|university/, "education students classroom"],
+    [/طب|صحة|مستشفى|medical|health|hospital/, "healthcare hospital doctors"],
+    [/عقار|مباني|معمار|real estate|architecture/, "modern architecture real estate"],
+    [/مطعم|اكل|أكل|food|restaurant/, "restaurant food kitchen"],
+    [/موضة|ازياء|أزياء|fashion/, "fashion editorial model"],
+    [/تقنية|ذكاء|ai|technology|software|startup/, "artificial intelligence technology workspace"],
+    [/بيئة|زراعة|طاقة|environment|farm|energy/, "renewable energy nature agriculture"],
+    [/سياحة|سفر|travel|tourism/, "travel destination landscape"],
+    [/مال|بنك|استثمار|finance|bank|investment/, "finance business investment"],
+  ];
+  for (const [re, q] of pairs) if (re.test(lower)) mapped.push(q);
+  const latin = prompt.match(/[a-zA-Z][a-zA-Z\s-]{2,}/g)?.join(" ").trim() || "";
+  const base = [mapped.join(" "), latin].filter(Boolean).join(" ").trim();
+  return (base || "professional editorial documentary").slice(0, 180);
+}
+
+async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
+  const apiKey = Deno.env.get("PEXELS_API_KEY");
+  if (!apiKey) return [];
+  try {
+    const url = new URL("https://api.pexels.com/v1/search");
+    url.searchParams.set("query", buildImageQuery(prompt));
+    url.searchParams.set("per_page", "12");
+    url.searchParams.set("orientation", "landscape");
+    const resp = await fetch(url.toString(), { headers: { Authorization: apiKey } });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return ((data?.photos || []) as any[]).map((p) => ({
+      url: p?.src?.large2x || p?.src?.large || p?.src?.original,
+      alt: p?.alt || buildImageQuery(prompt),
+    })).filter((p) => p.url).slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Compress a full template HTML down to its visual DNA so we don't ship
  * 100KB+ of markup to the model. We keep <head> CSS / fonts / scripts and
@@ -91,6 +134,53 @@ function compressTemplate(html: string, maxChars = 9000): string {
   const bodySample = bodyInner.slice(0, Math.max(2000, maxChars - head.length - 400));
   let out = `${head}\n${bodyOpen}\n${bodySample}\n<!-- ...content omitted: model must expand into 12-20 sections... -->\n</body></html>`;
   if (out.length > maxChars) out = out.slice(0, maxChars) + "\n<!-- truncated -->";
+  return out;
+}
+
+function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: string }>, imageQuery: string): string {
+  let out = html.trim();
+  if (!/^\s*<!doctype/i.test(out) && !/^\s*<html/i.test(out)) out = `<!DOCTYPE html>\n${out}`;
+
+  out = out.replace(/<header\b[\s\S]*?<\/header>/gi, "");
+  out = out.replace(/<nav\b[\s\S]*?<\/nav>/gi, "");
+  out = out.replace(/<footer\b[\s\S]*?<\/footer>/gi, "");
+  out = out.replace(/<button\b[\s\S]*?<\/button>/gi, "");
+  out = out.replace(/<a\b(?![^>]*href=["']#)[\s\S]*?<\/a>/gi, "");
+
+  const fallbackImages = images.length ? images : Array.from({ length: 12 }, (_, i) => ({
+    url: `https://source.unsplash.com/1600x900/?${encodeURIComponent(imageQuery)},editorial,${i}`,
+    alt: imageQuery,
+  }));
+  let imageIndex = 0;
+  out = out.replace(/<img\b([^>]*?)>/gi, (match, attrs) => {
+    const picked = fallbackImages[imageIndex % fallbackImages.length];
+    imageIndex++;
+    const cleanedAttrs = String(attrs)
+      .replace(/\s(?:src|srcset|data-src|data-lazy-src|alt)=("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+      .replace(/\sloading=("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+    const alt = String(picked.alt || imageQuery).replace(/"/g, "&quot;");
+    return `<img${cleanedAttrs} src="${picked.url}" alt="${alt}" loading="lazy">`;
+  });
+
+  const imgCount = (out.match(/<img\b/gi) || []).length;
+  if (imgCount < 8 && /<\/body>/i.test(out)) {
+    const needed = 8 - imgCount;
+    const gallery = `<section class="slide-media-gallery" style="padding:8rem 6vw;display:grid;gap:2rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">${Array.from({ length: needed }, (_, i) => {
+      const picked = fallbackImages[(imageIndex + i) % fallbackImages.length];
+      const alt = String(picked.alt || imageQuery).replace(/"/g, "&quot;");
+      return `<figure style="margin:0;aspect-ratio:16/10;overflow:hidden;border-radius:24px;"><img src="${picked.url}" alt="${alt}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;"></figure>`;
+    }).join("")}</section>`;
+    out = out.replace(/<\/body>/i, `${gallery}\n</body>`);
+  }
+
+  const sectionCount = (out.match(/<section\b/gi) || []).length;
+  if (sectionCount < 10 && /<\/body>/i.test(out)) {
+    const extra = Array.from({ length: 10 - sectionCount }, (_, i) => `<section class="slide-content-block" style="min-height:70vh;padding:8rem 6vw;display:grid;align-content:center;gap:1.5rem;"><p style="letter-spacing:.18em;text-transform:uppercase;opacity:.65;margin:0;">${String(i + 1).padStart(2, "0")}</p><h2 style="font-size:clamp(3rem,8vw,8rem);line-height:.95;margin:0;">Key Perspective ${i + 1}</h2><p style="font-size:clamp(1.1rem,2vw,1.6rem);line-height:1.65;max-width:900px;margin:0;opacity:.82;">This section expands the deck with a clear structured argument, practical context, measurable signals, and a concise takeaway that keeps the narrative complete and presentation-ready.</p></section>`).join("\n");
+    out = out.replace(/<\/body>/i, `${extra}\n</body>`);
+  }
+
+  const hardeningCss = `<style id="megsy-slide-hardening">html,body{min-height:100%;}img{max-width:100%;height:auto;}section{position:relative;}header,nav,footer,button{display:none!important;}</style>`;
+  out = /<\/head>/i.test(out) ? out.replace(/<\/head>/i, `${hardeningCss}\n</head>`) : out.replace(/<body/i, `<head>${hardeningCss}</head><body`);
   return out;
 }
 
@@ -126,8 +216,11 @@ Deno.serve(async (req) => {
     const kind: string = String(body?.kind || "site");
     const isSlides = kind === "slides";
     const templateName: string = String(body?.templateName || body?.template || "");
+    const templateFolder: string = String(body?.templateFolder || "");
     const rawTemplateHtml: string = String(body?.templateHtml || "");
     if (isSlides && !rawTemplateHtml) throw new Error("templateHtml is required for slides");
+    const imageQuery = isSlides ? buildImageQuery(prompt) : "";
+    const imageUrls = isSlides ? await fetchImageUrls(prompt) : [];
 
     // ─── TOKEN GUARD ───────────────────────────────────────────────
     // Compress the template HTML to ~9KB of visual DNA so we don't ship
@@ -139,6 +232,11 @@ Deno.serve(async (req) => {
     // Falls back automatically inside the model chain on the gateway.
     // Cheap & strong: Gemini 2.5 Flash Lite (~$0.10/M output, 1M ctx).
     const model: string = body?.model || "google/gemini-2.5-flash-lite";
+    const requestedSlideCount = Math.max(8, Math.min(20, Number(body?.slideCount) || 12));
+    const requestedDepth = Math.max(1, Math.min(5, Number(body?.contentDepth) || 3));
+    const maxOutputTokens = isSlides
+      ? Math.min(28000, Math.max(16000, requestedSlideCount * (900 + requestedDepth * 220)))
+      : 9000;
     if (!prompt) throw new Error("prompt is required");
 
     const { data: site, error: insErr } = await admin
@@ -173,7 +271,15 @@ Deno.serve(async (req) => {
           const userPrompt = isSlides
             ? [
                 `USER BRIEF:\n${prompt}`,
-                `\nTEMPLATE NAME: ${templateName}`,
+                `\nREQUESTED SLIDE COUNT: ${requestedSlideCount}`,
+                `\nCONTENT DEPTH (1-5): ${requestedDepth}`,
+                `\nTEMPLATE LOCK: You MUST use this exact chosen template identity. Do not switch styles.`,
+                `TEMPLATE ID/FOLDER: ${templateFolder || templateName}`,
+                `TEMPLATE NAME: ${templateName}`,
+                `\nIMAGE TOPIC: ${imageQuery}`,
+                imageUrls.length
+                  ? `\nAPPROVED IMAGE URLS (use these exact working URLs before any other source, keep them relevant to the brief):\n${imageUrls.map((img, i) => `${i + 1}. ${img.url} — ALT: ${img.alt}`).join("\n")}`
+                  : `\nIMAGE FALLBACK: use https://source.unsplash.com/1600x900/?${encodeURIComponent(imageQuery)} with varied relevant keywords.`,
                 `\nTEMPLATE VISUAL DNA (head/CSS + first section — REUSE the styles, fonts, color palette and design language. EXPAND the body into 12-20 distinct sections of fresh content):\n\n${templateHtml}`,
               ].join("\n")
             : prompt;
@@ -195,8 +301,8 @@ Deno.serve(async (req) => {
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt },
               ],
-              temperature: isSlides ? 0.6 : 0.8,
-              max_tokens: isSlides ? 14000 : 9000,
+              temperature: isSlides ? 0.45 : 0.8,
+              max_tokens: maxOutputTokens,
             }),
           });
 
@@ -246,6 +352,7 @@ Deno.serve(async (req) => {
             html = extractHtml(fullText);
             html = stripEmojis(html);
             if (!html || html.length < 200) throw new Error("Model returned empty HTML");
+            html = normalizeSlidesHtml(html, imageUrls, imageQuery);
             stored = html;
           } else {
             stored = extractCode(fullText);

@@ -10,6 +10,7 @@ export interface LandingTemplate {
   id: string;
   name: string;
   description: string;
+  folder: string;
   /** path under /public — fetched by the browser before sending to the edge fn */
   path: string;
   /** real screenshot under /public/template-thumbs/ */
@@ -25,6 +26,7 @@ const t = (
   id,
   name,
   description,
+  folder,
   path: `/templates/${folder}/index.html`,
   preview: `/template-thumbs/${folder}.jpg`,
 });
