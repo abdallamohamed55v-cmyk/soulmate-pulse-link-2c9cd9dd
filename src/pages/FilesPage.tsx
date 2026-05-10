@@ -1147,6 +1147,127 @@ const formatSize = (n: number) => {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 };
 
+interface AttachButtonProps {
+  attached: AttachedFile[];
+  setAttached: React.Dispatch<React.SetStateAction<AttachedFile[]>>;
+  onTools?: () => void;
+  toolsLabel?: string;
+}
+
+const AttachButton = ({ attached, setAttached, onTools, toolsLabel = "Templates" }: AttachButtonProps) => {
+  const [open, setOpen] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const next: AttachedFile[] = [];
+    for (const f of Array.from(files)) {
+      if (f.size > 20 * 1024 * 1024) {
+        toast.error(`${f.name} أكبر من 20MB`);
+        continue;
+      }
+      next.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: f.name, size: f.size, type: f.type || "application/octet-stream",
+        url: URL.createObjectURL(f), file: f,
+      });
+    }
+    if (next.length > 0) {
+      setAttached((prev) => [...prev, ...next].slice(0, 10));
+      toast.success(`تمت إضافة ${next.length} ملف`);
+    }
+    setOpen(false);
+  };
+
+  const Item = ({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-foreground/5 active:scale-[0.98] transition text-left"
+    >
+      <span className="h-9 w-9 rounded-full flex items-center justify-center bg-foreground/5 text-foreground">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="text-[14px] font-medium text-foreground">{label}</span>
+    </button>
+  );
+
+  return (
+    <>
+      <input ref={photoInputRef}  type="file" accept="image/*" multiple hidden
+             onChange={(e) => addFiles(e.target.files)} />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" hidden
+             onChange={(e) => addFiles(e.target.files)} />
+      <input ref={fileInputRef}   type="file" multiple hidden
+             onChange={(e) => addFiles(e.target.files)} />
+
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Attach"
+            className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition"
+            style={glassChip}
+          >
+            <Plus className={`h-4 w-4 transition-transform ${open ? "rotate-45" : ""}`} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="top" align="start" sideOffset={10}
+          className="w-64 p-1.5 rounded-2xl border-border/50"
+          style={glassSurface}
+        >
+          <Item icon={ImageIcon} label="مكتبة الصور"   onClick={() => photoInputRef.current?.click()} />
+          <Item icon={Camera}    label="الكاميرا"      onClick={() => cameraInputRef.current?.click()} />
+          <Item icon={Paperclip} label="الملفات"        onClick={() => fileInputRef.current?.click()} />
+          {onTools && (
+            <>
+              <div className="my-1 mx-3 h-px bg-foreground/8" />
+              <Item icon={Wand2} label={toolsLabel} onClick={() => { setOpen(false); onTools(); }} />
+            </>
+          )}
+        </PopoverContent>
+      </Popover>
+    </>
+  );
+};
+
+const AttachmentChips = ({ attached, setAttached }: { attached: AttachedFile[]; setAttached: React.Dispatch<React.SetStateAction<AttachedFile[]>> }) => {
+  if (attached.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 px-3 pt-3">
+      {attached.map((a) => {
+        const isImg = a.type.startsWith("image/");
+        return (
+          <div key={a.id} className="group relative flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl text-xs" style={glassChip}>
+            {isImg ? (
+              <img src={a.url} alt="" className="h-7 w-7 rounded-lg object-cover" />
+            ) : (
+              <span className="h-7 w-7 rounded-lg bg-foreground/10 flex items-center justify-center">
+                <FileText className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <div className="flex flex-col leading-tight max-w-[140px]">
+              <span className="truncate font-medium">{a.name}</span>
+              <span className="text-muted-foreground text-[10px]">{formatSize(a.size)}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}
+              className="ml-1 h-5 w-5 rounded-full bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center"
+              aria-label="Remove"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 /* ─────────────── Main hero input (with templates + options popover) ─────────────── */
 
 interface InputBoxProps {
