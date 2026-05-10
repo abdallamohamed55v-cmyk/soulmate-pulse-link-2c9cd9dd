@@ -711,12 +711,20 @@ const FilesPage = () => {
         thumb = await captureThumb(htmlPreview, `file-${convId || result.id}`);
       }
 
-      // Final summary report
-      const summaryParts: string[] = [];
-      if (doc?.title) summaryParts.push(`Created "${doc.title}"`);
-      if (isSlides && Array.isArray((doc as any).slides)) summaryParts.push(`${(doc as any).slides.length} slides`);
-      if (selectedTemplate?.name) summaryParts.push(`styled with ${selectedTemplate.name}`);
-      const summary = summaryParts.join(" • ") || `Your ${selectedKind} is ready.`;
+      // Final summary — AI-written one-liner that reflects the actual output
+      const slidesArr = isSlides && Array.isArray((doc as any).slides) ? (doc as any).slides : null;
+      const wordCount = htmlPreview ? htmlPreview.replace(/<[^>]+>/g, " ").trim().split(/\s+/).length : 0;
+      const fallback =
+        (doc?.title ? `Created "${doc.title}"` : `Your ${selectedKind} is ready.`) +
+        (slidesArr ? ` • ${slidesArr.length} slides` : "") +
+        (selectedTemplate?.name ? ` • styled with ${selectedTemplate.name}` : "");
+      const summary = await aiSummary({
+        kind: selectedKind, title: doc?.title || "", prompt,
+        templateName: selectedTemplate?.name || "",
+        slideCount: slidesArr ? slidesArr.length : 0,
+        wordCount,
+        fallback,
+      });
 
       setMessages(prev => {
         const copy = [...prev];
