@@ -91,15 +91,27 @@ Deno.serve(async (req) => {
     const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
     const url = pub.publicUrl;
 
-    await admin.from("template_images").upsert({
-      template_id: id,
-      image_url: url,
-      source: "telegram",
-      uploaded_by_chat_id: chatId,
-      updated_at: new Date().toISOString(),
-    });
-
-    await tgApi("sendMessage", { chat_id: chatId, text: `✅ تم حفظ صورة ${id}` });
+    // Auto-route: if id matches a document_templates row, save there; otherwise treat as slides template.
+    const { data: docTpl } = await admin.from("document_templates").select("id").eq("id", id).maybeSingle();
+    if (docTpl) {
+      await admin.from("document_template_images").upsert({
+        template_id: id,
+        image_url: url,
+        source: "telegram",
+        uploaded_by_chat_id: chatId,
+        updated_at: new Date().toISOString(),
+      });
+      await tgApi("sendMessage", { chat_id: chatId, text: `✅ تم حفظ صورة Document: ${id}` });
+    } else {
+      await admin.from("template_images").upsert({
+        template_id: id,
+        image_url: url,
+        source: "telegram",
+        uploaded_by_chat_id: chatId,
+        updated_at: new Date().toISOString(),
+      });
+      await tgApi("sendMessage", { chat_id: chatId, text: `✅ تم حفظ صورة Slides: ${id}` });
+    }
     return new Response("ok");
   } catch (e) {
     console.error("telegram-templates error", e);
