@@ -137,11 +137,8 @@ Deno.serve(async (req) => {
 
     // FREE strong model from OpenRouter (1M ctx, no per-token cost).
     // Falls back automatically inside the model chain on the gateway.
-    // FREE strong model from OpenRouter (working endpoints, large ctx).
-    const model: string = body?.model
-      || (isSlides
-        ? "deepseek/deepseek-chat-v3-0324:free"
-        : "deepseek/deepseek-chat-v3-0324:free");
+    // Cheap & strong: Gemini 2.5 Flash Lite (~$0.10/M output, 1M ctx).
+    const model: string = body?.model || "google/gemini-2.5-flash-lite";
     if (!prompt) throw new Error("prompt is required");
 
     const { data: site, error: insErr } = await admin
