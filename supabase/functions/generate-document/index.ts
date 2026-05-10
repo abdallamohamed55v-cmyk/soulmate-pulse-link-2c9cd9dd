@@ -243,6 +243,7 @@ Deno.serve(async (req) => {
           controller.enqueue(enc.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (e: any) {
+          console.error("[generate-document] stream error:", e?.message, e?.stack);
           try {
             controller.enqueue(new TextEncoder().encode(sseLine({ error: e?.message || "Generation failed" })));
             controller.close();
