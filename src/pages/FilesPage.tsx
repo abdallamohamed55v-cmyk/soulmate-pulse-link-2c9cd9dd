@@ -645,6 +645,7 @@ const FilesPage = () => {
 
   const pickerTemplates: PickerTemplate[] = currentTemplates.map(t => ({
     id: t.id, name: t.name, preview: t.preview, description: t.description, fallbackLabel: t.name,
+    category: t.category,
   }));
 
   return (
