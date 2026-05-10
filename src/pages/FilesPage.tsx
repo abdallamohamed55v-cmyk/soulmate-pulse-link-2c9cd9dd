@@ -973,12 +973,12 @@ const FilesPage = () => {
                           {m.status ? (
                             <div className="space-y-1.5 py-1">
                               <p className="text-base font-extrabold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
-                                {m.status}…
+                                {stripEmoji(m.status)}…
                               </p>
                               {m.report && m.report.length > 1 && (
                                 <ul className="pl-1 space-y-0.5 text-xs text-muted-foreground">
                                   {m.report.slice(0, -1).slice(-3).map((s, idx) => (
-                                    <li key={idx} className="truncate font-semibold">{s}</li>
+                                    <li key={idx} className="truncate font-semibold">{stripEmoji(s)}</li>
                                   ))}
                                 </ul>
                               )}
