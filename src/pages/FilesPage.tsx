@@ -69,8 +69,8 @@ async function streamSlidesGeneration(
     throw new Error(`Could not load template: ${tpl.name}`);
   }
 
-  onStatus("Megsy is warming up");
-  onStep("Megsy is warming up");
+  onStatus("Warming up");
+  onStep("Warming up");
 
   const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-site`, {
     method: "POST",
@@ -100,6 +100,16 @@ async function streamSlidesGeneration(
   const dec = new TextDecoder();
   let buf = "", jsx = "", siteId = "", lastStep = "";
   let charsSinceStep = 0;
+  let phaseIdx = 0;
+  const PHASES = [
+    "Drafting outline",
+    "Writing content",
+    "Composing layout",
+    "Adding visuals",
+    "Refining sections",
+    "Polishing details",
+    "Finalizing",
+  ];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -123,9 +133,10 @@ async function streamSlidesGeneration(
         if (p.delta) {
           jsx += p.delta;
           charsSinceStep += p.delta.length;
-          if (charsSinceStep > 800) {
+          if (charsSinceStep > 2800) {
             charsSinceStep = 0;
-            const msg = `✍️ Writing... (${jsx.length.toLocaleString()} chars)`;
+            const msg = PHASES[phaseIdx % PHASES.length];
+            phaseIdx++;
             if (msg !== lastStep) { onStatus(msg); onStep(msg); lastStep = msg; }
           }
         }
@@ -191,20 +202,21 @@ const KINDS: { id: Kind; label: string; hasTemplates?: boolean }[] = [
 
 const DEFAULT_SLIDES_TEMPLATE = DEFAULT_LANDING_TEMPLATE;
 
-/** Friendly, brand-safe rephrasing of raw status events from the generator. */
+/** Clean, brand-safe rephrasing of raw status events from the generator. */
 function humanizeStatus(raw: string): string {
   const s = (raw || "").trim();
-  if (!s) return "Megsy is warming up";
+  if (!s) return "Warming up";
   const stripped = s.replace(/^[^\p{L}\p{N}]+/u, "").trim();
   const lower = stripped.toLowerCase();
-  if (lower.includes("research")) return "Megsy is researching your topic";
-  if (lower.includes("plan") || lower.includes("outline")) return "Megsy is shaping the outline";
-  if (lower.includes("writ") || lower.includes("draft") || lower.includes("content")) return "Megsy is writing the content";
-  if (lower.includes("design") || lower.includes("style") || lower.includes("layout")) return "Megsy is crafting the design";
-  if (lower.includes("image") || lower.includes("media") || lower.includes("visual")) return "Megsy is curating visuals";
-  if (lower.includes("export") || lower.includes("render") || lower.includes("final")) return "Megsy is polishing the result";
-  return "Megsy is " + (stripped.charAt(0).toLowerCase() + stripped.slice(1));
+  if (lower.includes("research")) return "Researching";
+  if (lower.includes("plan") || lower.includes("outline")) return "Shaping outline";
+  if (lower.includes("writ") || lower.includes("draft") || lower.includes("content")) return "Writing content";
+  if (lower.includes("design") || lower.includes("style") || lower.includes("layout")) return "Crafting design";
+  if (lower.includes("image") || lower.includes("media") || lower.includes("visual")) return "Curating visuals";
+  if (lower.includes("export") || lower.includes("render") || lower.includes("final")) return "Polishing";
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
 }
+
 
 async function streamGenerate(body: any, onStatus: (msg: string) => void, onStep: (msg: string) => void, signal?: AbortSignal) {
   const res = await fetch(`${DDS_BASE}/api/v1/generate`, {
@@ -416,7 +428,7 @@ const FilesPage = () => {
 
     setInput("");
     const userMsg: ChatMsg = { role: "user", content: prompt };
-    const assistantMsg: ChatMsg = { role: "assistant", content: "", status: "Megsy is getting started", report: [] };
+    const assistantMsg: ChatMsg = { role: "assistant", content: "", status: "Getting started", report: [] };
     setMessages(prev => [...prev, userMsg, assistantMsg]);
     setIsGenerating(true);
 
@@ -822,7 +834,7 @@ const FilesPage = () => {
                               {m.report && m.report.length > 1 && (
                                 <ul className="pl-1 space-y-0.5 text-xs text-muted-foreground">
                                   {m.report.slice(0, -1).slice(-3).map((s, idx) => (
-                                    <li key={idx} className="truncate">• {s}</li>
+                                    <li key={idx} className="truncate font-semibold">{s}</li>
                                   ))}
                                 </ul>
                               )}
