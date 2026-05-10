@@ -72,26 +72,38 @@ function stripEmojis(html: string): string {
 }
 
 function buildImageQuery(prompt: string): string {
-  const lower = prompt.toLowerCase();
-  const mapped: string[] = [];
-  const pairs: Array<[RegExp, string]> = [
-    [/مصر|egypt|القاهرة|الاهرام|الأهرام|نيل|النيل/, "Egypt Cairo Nile pyramids"],
-    [/سعود|رياض|جدة|saudi|riyadh/, "Saudi Arabia Riyadh architecture"],
-    [/دبي|امارات|الإمارات|dubai|uae/, "Dubai skyline business"],
-    [/تعليم|مدرس|جامعة|طلاب|education|school|university/, "education students classroom"],
-    [/طب|صحة|مستشفى|medical|health|hospital/, "healthcare hospital doctors"],
-    [/عقار|مباني|معمار|real estate|architecture/, "modern architecture real estate"],
-    [/مطعم|اكل|أكل|food|restaurant/, "restaurant food kitchen"],
-    [/موضة|ازياء|أزياء|fashion/, "fashion editorial model"],
-    [/تقنية|ذكاء|ai|technology|software|startup/, "artificial intelligence technology workspace"],
-    [/بيئة|زراعة|طاقة|environment|farm|energy/, "renewable energy nature agriculture"],
-    [/سياحة|سفر|travel|tourism/, "travel destination landscape"],
-    [/مال|بنك|استثمار|finance|bank|investment/, "finance business investment"],
-  ];
-  for (const [re, q] of pairs) if (re.test(lower)) mapped.push(q);
-  const latin = prompt.match(/[a-zA-Z][a-zA-Z\s-]{2,}/g)?.join(" ").trim() || "";
-  const base = [mapped.join(" "), latin].filter(Boolean).join(" ").trim();
-  return (base || "professional editorial documentary").slice(0, 180);
+  // Keep the user's original wording (Arabic or otherwise) — Firecrawl/Google
+  // image search supports multilingual queries far better than our hand-mapped
+  // English bucket. Just trim to a reasonable length.
+  const cleaned = prompt.replace(/\s+/g, " ").trim();
+  return cleaned.slice(0, 180) || "documentary photography";
+}
+
+/** Optional: ask a tiny LLM to convert an Arabic/long brief into 4-6 English
+ * image-search keywords. Cheap (Gemini Flash Lite, ~30 output tokens) and
+ * massively improves Firecrawl image relevance for non-English prompts. */
+async function translateToImageKeywords(prompt: string): Promise<string> {
+  const key = Deno.env.get("OPENROUTER_API_KEY");
+  if (!key) return "";
+  try {
+    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        max_tokens: 40,
+        temperature: 0,
+        messages: [
+          { role: "system", content: "You convert any user brief into 4-6 specific English image-search keywords for finding the most relevant real photos. Include proper nouns (people, places, brands) transliterated to English. Output ONLY the keywords, no quotes, no punctuation other than spaces." },
+          { role: "user", content: prompt.slice(0, 500) },
+        ],
+      }),
+    });
+    if (!r.ok) return "";
+    const j = await r.json();
+    const text = String(j?.choices?.[0]?.message?.content || "").trim();
+    return text.replace(/[\n"]+/g, " ").slice(0, 160);
+  } catch { return ""; }
 }
 
 async function fetchImagesFromFirecrawl(query: string): Promise<Array<{ url: string; alt: string }>> {
@@ -101,7 +113,7 @@ async function fetchImagesFromFirecrawl(query: string): Promise<Array<{ url: str
     const resp = await fetch("https://api.firecrawl.dev/v2/search", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query: `${query} high resolution photo`, limit: 18, sources: ["images"] }),
+      body: JSON.stringify({ query, limit: 18, sources: ["images"] }),
     });
     if (!resp.ok) return [];
     const data = await resp.json();
@@ -140,16 +152,33 @@ async function fetchImagesFromPexels(query: string): Promise<Array<{ url: string
 }
 
 async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
-  const baseQuery = buildImageQuery(prompt);
-  // Prefer Firecrawl (live web search), fall back to Pexels, then picsum.
-  const fc = await fetchImagesFromFirecrawl(baseQuery);
-  if (fc.length >= 8) return fc;
-  const px = await fetchImagesFromPexels(baseQuery);
-  const merged = [...fc, ...px.filter((p) => !fc.find((c) => c.url === p.url))];
+  const original = buildImageQuery(prompt);
+  const isArabic = /[\u0600-\u06FF]/.test(prompt);
+  console.log("[images] original query:", original, "isArabic:", isArabic, "FC_KEY:", !!Deno.env.get("FIRECRAWL_API_KEY"), "PX_KEY:", !!Deno.env.get("PEXELS_API_KEY"));
+  const [fcOriginal, englishKeywords] = await Promise.all([
+    fetchImagesFromFirecrawl(original),
+    isArabic ? translateToImageKeywords(prompt) : Promise.resolve(""),
+  ]);
+  console.log("[images] firecrawl(original) =>", fcOriginal.length, "english keywords =>", englishKeywords);
+  let collected = fcOriginal;
+  if (collected.length < 10 && englishKeywords) {
+    const fcEn = await fetchImagesFromFirecrawl(englishKeywords);
+    console.log("[images] firecrawl(english) =>", fcEn.length);
+    collected = [...collected, ...fcEn.filter((p) => !collected.find((c) => c.url === p.url))];
+  }
+  if (collected.length >= 10) {
+    console.log("[images] returning firecrawl-only:", collected.length, "first:", collected[0]?.url);
+    return collected.slice(0, 18);
+  }
+  const pxQuery = englishKeywords || original;
+  const px = await fetchImagesFromPexels(pxQuery);
+  console.log("[images] pexels =>", px.length);
+  const merged = [...collected, ...px.filter((p) => !collected.find((c) => c.url === p.url))];
   while (merged.length < 14) {
     const seed = Math.floor(Math.random() * 100000) + merged.length;
-    merged.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: baseQuery });
+    merged.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: pxQuery });
   }
+  console.log("[images] final merged =>", merged.length, "first:", merged[0]?.url);
   return merged.slice(0, 18);
 }
 
@@ -159,27 +188,40 @@ async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt:
  * a small body sample so the model can mimic the design system, then it
  * generates fresh long-form content from scratch.
  */
-function compressTemplate(html: string, maxChars = 9000): string {
+function compressTemplate(html: string, maxChars = 3500): string {
   if (!html) return "";
-  if (html.length <= maxChars) return html;
 
-  const headMatch = html.match(/<head[^>]*>[\s\S]*?<\/head>/i);
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  const head = headMatch ? headMatch[0] : "";
-  const bodyOpen = (html.match(/<body[^>]*>/i) || [""])[0] || "<body>";
-  const bodyInner = bodyMatch ? bodyMatch[1] : html;
+  // Extract Google Fonts <link> tags (cheap, high-signal).
+  const fontLinks = (html.match(/<link[^>]*fonts\.googleapis[^>]*>/gi) || []).join("\n");
 
-  // Take just the first ~3500 chars of body (likely hero + first section).
-  const bodySample = bodyInner.slice(0, Math.max(2000, maxChars - head.length - 400));
-  let out = `${head}\n${bodyOpen}\n${bodySample}\n<!-- ...content omitted: model must expand into 12-20 sections... -->\n</body></html>`;
-  if (out.length > maxChars) out = out.slice(0, maxChars) + "\n<!-- truncated -->";
-  return out;
+  // Extract CSS custom properties (color tokens, radii) and body font rules.
+  const styleBlocks = html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || [];
+  const allCss = styleBlocks.map((s) => s.replace(/<\/?style[^>]*>/gi, "")).join("\n");
+  const rootVars = (allCss.match(/:root\s*\{[\s\S]*?\}/g) || []).join("\n");
+  const bodyRules = (allCss.match(/(?:^|[^.\w-])body\s*\{[\s\S]*?\}/g) || []).join("\n");
+  const fontFaceRules = (allCss.match(/@font-face\s*\{[\s\S]*?\}/g) || []).join("\n");
+
+  const dna = [
+    "<!-- TEMPLATE VISUAL DNA (color tokens + fonts only — recreate sections from scratch using these) -->",
+    fontLinks,
+    "<style>",
+    fontFaceRules,
+    rootVars,
+    bodyRules,
+    "</style>",
+  ].filter(Boolean).join("\n").slice(0, maxChars);
+
+  return dna || html.slice(0, maxChars);
 }
 
 function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: string }>, imageQuery: string): string {
   let out = html.trim();
   if (!/^\s*<!doctype/i.test(out) && !/^\s*<html/i.test(out)) out = `<!DOCTYPE html>\n${out}`;
-
+  // If model never opened a <body> (e.g. drowned in <style>), append an empty body so the
+  // gallery + section fallbacks below have a place to inject content.
+  if (!/<body\b/i.test(out)) out = out + "\n<body></body>";
+  if (!/<\/body>/i.test(out)) out = out + "\n</body>";
+  if (!/<\/html>/i.test(out)) out = out + "\n</html>";
   out = out.replace(/<header\b[\s\S]*?<\/header>/gi, "");
   out = out.replace(/<nav\b[\s\S]*?<\/nav>/gi, "");
   out = out.replace(/<footer\b[\s\S]*?<\/footer>/gi, "");
@@ -301,7 +343,7 @@ Deno.serve(async (req) => {
     // Compress the template HTML to ~9KB of visual DNA so we don't ship
     // 100KB+ to the model. Combined with smaller output target this keeps
     // total request well under 30K tokens (vs 100K+ before).
-    const templateHtml = isSlides ? compressTemplate(rawTemplateHtml, 9000) : rawTemplateHtml;
+    const templateHtml = isSlides ? compressTemplate(rawTemplateHtml, 3500) : rawTemplateHtml;
 
     // FREE strong model from OpenRouter (1M ctx, no per-token cost).
     // Falls back automatically inside the model chain on the gateway.
