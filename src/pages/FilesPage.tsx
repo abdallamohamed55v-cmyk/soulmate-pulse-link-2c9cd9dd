@@ -1435,6 +1435,7 @@ const ChatInputBox = ({ value, onChange, onSend, onStop, isGenerating, textareaR
           <ArrowUp className="h-4 w-4" />
         </button>
       )}
+      </div>
     </div>
   );
 };
