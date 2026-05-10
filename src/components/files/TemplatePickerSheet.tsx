@@ -6,6 +6,7 @@ export interface PickerTemplate {
   name: string;
   preview?: string;
   description?: string;
+  fallbackLabel?: string;
 }
 
 interface Props {
@@ -17,6 +18,21 @@ interface Props {
 }
 
 const TemplatePickerSheet = ({ open, templates, selectedId, onSelect, onClose }: Props) => {
+  const getFallbackStyle = (id: string): React.CSSProperties => {
+    const palettes: Record<string, string> = {
+      "portfolio-3d": "linear-gradient(135deg,#08080c 0%,#28135f 48%,#65f4ff 100%)",
+      documentary: "linear-gradient(135deg,#161412 0%,#6d5540 48%,#e6d3b1 100%)",
+      "fashion-ice": "linear-gradient(135deg,#eef8ff 0%,#9ed6ef 48%,#18212b 100%)",
+      "digital-marketplace": "linear-gradient(135deg,#0b1020 0%,#174ea6 48%,#5cffc8 100%)",
+      "blob-landing": "linear-gradient(135deg,#fff1f2 0%,#f59e0b 48%,#7c3aed 100%)",
+      landscape: "linear-gradient(135deg,#10291e 0%,#77935d 48%,#e8d6a0 100%)",
+      "modern-ai": "linear-gradient(135deg,#06111f 0%,#2563eb 48%,#dbeafe 100%)",
+      noodles: "linear-gradient(135deg,#fff3d6 0%,#f97316 48%,#9a3412 100%)",
+      "science-lab": "linear-gradient(135deg,#06130f 0%,#10b981 48%,#d9f99d 100%)",
+    };
+    return { background: palettes[id] || "linear-gradient(135deg,hsl(var(--muted)),hsl(var(--accent)))" };
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -57,13 +73,19 @@ const TemplatePickerSheet = ({ open, templates, selectedId, onSelect, onClose }:
                           alt={t.name}
                           loading="lazy"
                           className="w-full h-full object-cover"
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }}
+                          onError={(e) => {
+                            const img = e.currentTarget as HTMLImageElement;
+                            img.style.display = "none";
+                            img.parentElement?.classList.remove("bg-gradient-to-br", "from-muted/40", "to-muted");
+                          }}
                         />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground uppercase tracking-widest">
-                          {t.name}
-                        </div>
-                      )}
+                      ) : null}
+                      <div
+                        className="absolute inset-0 flex items-end p-3 text-xs font-black uppercase tracking-[0.22em] text-white/90"
+                        style={getFallbackStyle(t.id)}
+                      >
+                        <span className="drop-shadow-lg">{t.fallbackLabel || t.name}</span>
+                      </div>
                     </div>
                     <div className="px-3 py-2.5 flex items-center justify-between">
                       <span className="text-sm font-semibold truncate">{t.name}</span>
