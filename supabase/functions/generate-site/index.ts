@@ -246,7 +246,34 @@ function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: str
     out = out.replace(/<\/body>/i, `${gallery}\n</body>`);
   }
 
-  const hardeningCss = `<style id="megsy-slide-hardening">html,body{min-height:100%;}img{max-width:100%;height:auto;}section{position:relative;}header,nav,footer,button{display:none!important;}</style>`;
+  const hardeningCss = `<style id="megsy-slide-hardening">
+html,body{min-height:100%;max-width:100vw;overflow-x:hidden;}
+*,*::before,*::after{max-width:100%;}
+img,video,svg,picture{max-width:100%;height:auto;display:block;}
+section{position:relative;max-width:100vw;overflow-x:hidden;}
+header,nav,footer,button{display:none!important;}
+table{display:block;max-width:100%;overflow-x:auto;}
+pre,code{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;}
+@media (max-width: 640px){
+  body{font-size:16px;}
+  [class*="text-9xl"],[class*="text-8xl"]{font-size:clamp(2.5rem,11vw,5rem)!important;line-height:1.05!important;}
+  [class*="text-7xl"],[class*="text-6xl"]{font-size:clamp(2rem,9vw,3.5rem)!important;line-height:1.1!important;}
+  [class*="text-5xl"]{font-size:clamp(1.75rem,7.5vw,2.75rem)!important;line-height:1.15!important;}
+  [class*="text-4xl"]{font-size:clamp(1.5rem,6.5vw,2.25rem)!important;line-height:1.2!important;}
+  [class*="py-48"],[class*="py-40"],[class*="py-36"],[class*="py-32"]{padding-top:4rem!important;padding-bottom:4rem!important;}
+  [class*="py-24"],[class*="py-20"]{padding-top:3rem!important;padding-bottom:3rem!important;}
+  [class*="px-20"],[class*="px-16"],[class*="px-12"]{padding-left:1.25rem!important;padding-right:1.25rem!important;}
+  [class*="grid-cols-2"],[class*="grid-cols-3"],[class*="grid-cols-4"],[class*="grid-cols-5"],[class*="grid-cols-6"]{grid-template-columns:1fr!important;}
+  [class*="gap-16"],[class*="gap-20"],[class*="gap-24"]{gap:1.5rem!important;}
+  [style*="grid-template-columns"]{grid-template-columns:1fr!important;}
+  [style*="writing-mode"]{writing-mode:horizontal-tb!important;}
+  [class*="h-screen"]{min-height:80vh!important;height:auto!important;}
+  .slide-media-gallery{padding:3rem 1.25rem!important;grid-template-columns:1fr!important;}
+}
+@media (max-width: 900px){
+  [class*="grid-cols-3"],[class*="grid-cols-4"],[class*="grid-cols-5"]{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+}
+</style>`;
   out = /<\/head>/i.test(out) ? out.replace(/<\/head>/i, `${hardeningCss}\n</head>`) : out.replace(/<body/i, `<head>${hardeningCss}</head><body`);
   return out;
 }
