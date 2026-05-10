@@ -615,6 +615,42 @@ const FilesPage = () => {
         return;
       }
 
+      // ───── Document / Report / Letter / Resume → internal generate-document ─────
+      if (selectedKind === "document" || selectedKind === "report" || selectedKind === "letter" || selectedKind === "resume") {
+        const out = await streamDocumentGeneration(
+          prompt,
+          { kind: selectedKind, template: selectedTemplate },
+          onStatusCb, onStepCb, abortRef.current.signal,
+        );
+        const title = prompt.slice(0, 80);
+        const thumb = await captureThumb(out.html, `file-${convId || out.id}`);
+        const summary = `Created "${title}"`;
+        setMessages(prev => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant") {
+            last.status = undefined;
+            last.content = summary;
+            last.generationId = out.id;
+            last.doc = { kind: selectedKind, title } as DocsDoc;
+            last.htmlPreview = out.html;
+            last.thumbnail = thumb;
+          }
+          return copy;
+        });
+        if (convId) {
+          await supabase.from("messages").insert({
+            conversation_id: convId, role: "assistant", content: summary,
+          } as any);
+          await supabase.from("conversations").update({
+            title,
+            ui_state: { kind: selectedKind, thumbnail: thumb, generation_id: out.id, source: "generate-document" } as any,
+          }).eq("id", convId);
+          loadSavedFiles();
+        }
+        return;
+      }
+
       const result = await streamGenerate(
         {
           kind: selectedKind,
