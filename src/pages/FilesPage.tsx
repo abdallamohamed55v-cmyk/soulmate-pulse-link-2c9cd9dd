@@ -798,6 +798,29 @@ const FilesPage = () => {
     setPreviewHtml(html); setPreviewTitle(title || "Preview"); setPreviewOpen(true);
   };
 
+  const handlePreview = useCallback(async (msg: ChatMsg) => {
+    try {
+      let html = msg.htmlPreview || "";
+      if (!html && msg.generationId) {
+        if (msg.doc?.kind === "slides") {
+          const { data } = await supabase.from("generated_sites").select("html_compiled, jsx_code").eq("id", msg.generationId).maybeSingle();
+          html = data?.html_compiled || (data?.jsx_code ? buildSiteHtml(data.jsx_code) : "");
+        } else {
+          const res = await fetch(`${DDS_BASE}/api/v1/generations/${msg.generationId}/export?format=html`, { method: "POST" });
+          if (res.ok) html = await res.text();
+        }
+        if (html) {
+          setMessages((prev) => prev.map((x) => (x === msg ? { ...x, htmlPreview: html } : x)));
+        }
+      }
+      if (!html) throw new Error("Preview unavailable");
+      openPreview(html, msg.doc?.title);
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't open preview");
+    }
+  }, []);
+
+
   const openSavedFile = async (file: SavedFile) => {
     setIsGenerating(true);
     try {
