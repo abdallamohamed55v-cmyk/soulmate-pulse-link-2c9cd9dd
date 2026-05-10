@@ -316,22 +316,33 @@ Deno.serve(async (req) => {
     const category: string = String(body?.category || "premium");
     if (isSlides && !rawTemplateHtml) throw new Error("templateHtml is required for slides");
 
-    // ─── PREMIUM DAILY LIMIT (3 / day) ─────────────────────────────
+    // ─── PREMIUM DAILY LIMIT (3 / day) — Free plan only ─────────────
     if (isSlides && category === "premium") {
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { count } = await admin
-        .from("premium_usage")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("used_at", since);
-      if ((count ?? 0) >= 3) {
-        return new Response(JSON.stringify({
-          error: "PREMIUM_LIMIT_REACHED",
-          message: "لقد وصلت إلى الحد اليومي (3) لقوالب Premium. جرّب القوالب العادية أو عُد غدًا.",
-        }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .maybeSingle();
+      const plan = String(profile?.plan || "free").toLowerCase();
+      const isFree = plan === "free" || plan === "";
+
+      if (isFree) {
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { count } = await admin
+          .from("premium_usage")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gte("used_at", since);
+        if ((count ?? 0) >= 3) {
+          return new Response(JSON.stringify({
+            error: "PREMIUM_LIMIT_REACHED",
+            message: "لقد وصلت إلى الحد اليومي (3) لقوالب Premium للخطة المجانية. قم بالترقية أو جرّب القوالب العادية.",
+          }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
       }
       await admin.from("premium_usage").insert({ user_id: user.id, template_id: templateId });
     }
+
 
     const imageQuery = isSlides ? buildImageQuery(prompt) : "";
     const imageUrls = isSlides ? await fetchImageUrls(prompt) : [];
