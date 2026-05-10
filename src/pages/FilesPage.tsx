@@ -1009,7 +1009,7 @@ const FilesPage = () => {
                     <div className="max-w-[92%] w-full">
                       <div className="flex items-start gap-2.5">
                         <div className="shrink-0 mt-0.5">
-                          <MegsyStar size={22} />
+                          <MegsyStar size={22} static={!m.status} />
                         </div>
                         <div className="flex-1 min-w-0">
                           {m.status ? (
