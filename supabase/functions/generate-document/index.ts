@@ -130,11 +130,12 @@ Deno.serve(async (req) => {
             .from("generated_sites")
             .insert({
               user_id: userId,
+              title: (tpl?.name || prompt || kind).toString().slice(0, 80),
               prompt,
               jsx_code: "",
               html_compiled: "",
-              source: "generate-document",
-              metadata: { kind, template_id: tpl?.id || null, template_name: tpl?.name || null } as any,
+              model_used: "google/gemini-2.5-flash",
+              status: "generating",
             } as any)
             .select("id").single();
           if (insErr || !row) throw new Error(insErr?.message || "Could not create record");
@@ -228,7 +229,7 @@ Deno.serve(async (req) => {
           await admin.from("generated_sites").update({
             html_compiled: finalHtml,
             jsx_code: cleaned,
-            metadata: { kind, template_id: tpl?.id || null, template_name: tpl?.name || null, generator: "generate-document" } as any,
+            status: "completed",
           } as any).eq("id", siteId);
 
           if (tpl?.category === "premium") {

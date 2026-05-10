@@ -246,27 +246,6 @@ function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: str
     out = out.replace(/<\/body>/i, `${gallery}\n</body>`);
   }
 
-  const sectionCount = (out.match(/<section\b/gi) || []).length;
-  if (sectionCount < 12 && /<\/body>/i.test(out)) {
-    const extra = Array.from({ length: 12 - sectionCount }, (_, i) => {
-      const picked = fallbackImages[(imageIndex + i + 5) % fallbackImages.length];
-      const alt = String(picked.alt || imageQuery).replace(/"/g, "&quot;");
-      return `<section class="slide-content-block" style="min-height:90vh;padding:9rem 6vw;display:grid;align-content:center;gap:2rem;">
-  <p style="letter-spacing:.18em;text-transform:uppercase;opacity:.65;margin:0;font-size:.9rem;">Section ${String(sectionCount + i + 1).padStart(2, "0")}</p>
-  <h2 style="font-size:clamp(3rem,8vw,8rem);line-height:.95;margin:0;font-weight:800;">Key Perspective ${i + 1}</h2>
-  <p style="font-size:clamp(1.15rem,1.8vw,1.6rem);line-height:1.7;max-width:1100px;margin:0;opacity:.85;">This chapter expands the deck with a structured argument grounded in real-world context: where the topic stands today, how it arrived here, the forces shaping its trajectory, and the measurable signals leaders track. We connect ideas to outcomes so the audience can act on what they read.</p>
-  <p style="font-size:clamp(1.05rem,1.5vw,1.35rem);line-height:1.75;max-width:1100px;margin:0;opacity:.75;">Drawing from contemporary case studies and longer historical patterns, we examine the tension between speed and depth, between visible wins and invisible groundwork. Numbers below summarize the most important shifts and a clear recommendation closes the section.</p>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:2rem;margin-top:2rem;">
-    <div><div style="font-size:clamp(2.5rem,5vw,5rem);font-weight:800;line-height:1;">${(i + 2) * 12}%</div><div style="opacity:.65;margin-top:.5rem;">growth signal</div></div>
-    <div><div style="font-size:clamp(2.5rem,5vw,5rem);font-weight:800;line-height:1;">${1995 + i * 4}</div><div style="opacity:.65;margin-top:.5rem;">turning point</div></div>
-    <div><div style="font-size:clamp(2.5rem,5vw,5rem);font-weight:800;line-height:1;">${(i + 3) * 7}M</div><div style="opacity:.65;margin-top:.5rem;">audience reached</div></div>
-  </div>
-  <figure style="margin:3rem 0 0;aspect-ratio:21/9;overflow:hidden;border-radius:28px;"><img src="${picked.url}" alt="${alt}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;"></figure>
-</section>`;
-    }).join("\n");
-    out = out.replace(/<\/body>/i, `${extra}\n</body>`);
-  }
-
   const hardeningCss = `<style id="megsy-slide-hardening">html,body{min-height:100%;}img{max-width:100%;height:auto;}section{position:relative;}header,nav,footer,button{display:none!important;}</style>`;
   out = /<\/head>/i.test(out) ? out.replace(/<\/head>/i, `${hardeningCss}\n</head>`) : out.replace(/<body/i, `<head>${hardeningCss}</head><body`);
   return out;
