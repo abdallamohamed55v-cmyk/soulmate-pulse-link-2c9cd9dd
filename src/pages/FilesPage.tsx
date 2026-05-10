@@ -1312,11 +1312,14 @@ const InputBox = ({
     };
   }, [optionsOpen, setOptionsOpen]);
 
+  const [attached, setAttached] = useState<AttachedFile[]>([]);
+
   return (
     <div
       className="rounded-[28px] focus-within:ring-2 focus-within:ring-primary/30 transition-all"
       style={glassSurface}
     >
+      <AttachmentChips attached={attached} setAttached={setAttached} />
       <textarea
         ref={textareaRef}
         value={value}
@@ -1330,16 +1333,12 @@ const InputBox = ({
       />
 
       <div className="flex items-center gap-1.5 px-2.5 pb-2.5">
-        {/* Attach button (+) — iOS 26 glass chip */}
-        <button
-          type="button"
-          onClick={handleAttach}
-          aria-label="Attach"
-          className="h-10 w-10 rounded-full flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition"
-          style={glassChip}
-        >
-          <Plus className="h-4 w-4" />
-        </button>
+        <AttachButton
+          attached={attached}
+          setAttached={setAttached}
+          onTools={showTemplates ? onOpenPicker : undefined}
+          toolsLabel={selectedTemplate?.name ? `قالب: ${selectedTemplate.name}` : "القوالب"}
+        />
 
         {showTemplates && (
           <button
