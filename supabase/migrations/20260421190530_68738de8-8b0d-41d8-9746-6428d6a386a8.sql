@@ -1,0 +1,22 @@
+
+INSERT INTO public.slide_templates (template_id, name, description, template_engine, component_name, display_order, is_active, image_url) VALUES
+('premium-sketch-hand', 'Sketch Hand', 'Hand-drawn sketch style with rough lines and Caveat font', 'react-native', 'SketchHand', -25, true, null),
+('premium-cinema-3d', 'Cinema 3D', '3D cinematic gradient mesh with depth layers', 'react-native', 'Cinema3D', -24, true, null),
+('premium-ios-glass', 'iOS Glass', 'iOS 26 liquid glass with SF Pro typography', 'react-native', 'iOSGlass', -23, true, null),
+('premium-terminal-dev', 'Terminal Dev', 'Hacker terminal aesthetic with monospace JetBrains Mono', 'react-native', 'TerminalDev', -22, true, null),
+('premium-magazine-fold', 'Magazine Fold', 'Editorial magazine layout with Playfair and Lora', 'react-native', 'MagazineFold', -21, true, null),
+('premium-neon-cyber', 'Neon Cyber', 'Cyberpunk neon glow with Orbitron font', 'react-native', 'NeonCyber', -20, true, null),
+('premium-paper-origami', 'Paper Origami', 'Folded paper shadows and clip-path geometry', 'react-native', 'PaperOrigami', -19, true, null),
+('premium-minimal-swiss', 'Minimal Swiss', 'Pure white Swiss grid with Helvetica precision', 'react-native', 'MinimalSwiss', -18, true, null),
+('premium-gradient-wave', 'Gradient Wave', 'SVG wave dividers with pastel gradients', 'react-native', 'GradientWave', -17, true, null),
+('premium-dark-luxe', 'Dark Luxe', 'Velvet black with gold accents and Bodoni serif', 'react-native', 'DarkLuxe', -16, true, null),
+('premium-kids-playful', 'Kids Playful', 'Playful colorful icons with Comic Neue', 'react-native', 'KidsPlayful', -15, true, null),
+('premium-corporate-navy', 'Corporate Navy', 'Navy and white corporate with Inter', 'react-native', 'CorporateNavy', -14, true, null),
+('premium-nature-organic', 'Nature Organic', 'Earth tones with leaf SVGs and Source Serif', 'react-native', 'NatureOrganic', -13, true, null),
+('premium-glitch-art', 'Glitch Art', 'RGB shift distortions and CSS glitch effects', 'react-native', 'GlitchArt', -12, true, null),
+('premium-isometric-tech', 'Isometric Tech', 'Isometric SVG illustrations with tech vibes', 'react-native', 'IsometricTech', -11, true, null),
+('premium-watercolor-soft', 'Watercolor Soft', 'Soft watercolor backgrounds with Dancing Script', 'react-native', 'WatercolorSoft', -10, true, null),
+('premium-retro-arcade', 'Retro Arcade', '80s arcade with Press Start 2P and CRT scanlines', 'react-native', 'RetroArcade', -9, true, null),
+('premium-scientific-paper', 'Scientific Paper', 'LaTeX-style scientific paper layout', 'react-native', 'ScientificPaper', -8, true, null),
+('premium-pitch-yc', 'Pitch YC', 'YC-style pitch deck with Inter and clean charts', 'react-native', 'PitchYC', -7, true, null),
+('premium-arabesque-gold', 'Arabesque Gold', 'Arabic ornaments with Amiri font in gold and blue', 'react-native', 'ArabesqueGold', -6, true, null);

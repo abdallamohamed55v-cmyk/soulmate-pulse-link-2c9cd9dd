@@ -1,0 +1,1 @@
+UPDATE public.profiles SET credits = 1000000, updated_at = now() WHERE id = '3863bfb6-7d0d-46da-a2d7-7ec920e4aa85';

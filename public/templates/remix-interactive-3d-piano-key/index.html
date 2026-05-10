@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive 3D Piano Key — Megsy Templates</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      overflow: hidden;
+      background: #0a0a0c;
+      font-family: 'Georgia', serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #canvas { display: block; width: 100vw; height: 100vh; }
+    #overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(5,5,8,0.92);
+      z-index: 100;
+      transition: opacity 0.8s ease;
+      cursor: pointer;
+    }
+    #overlay.hidden { opacity: 0; pointer-events: none; }
+    #overlay h1 {
+      font-size: 3.5rem; color: #f0e6d3; letter-spacing: 0.3em;
+      font-weight: 300; margin-bottom: 0.5rem;
+      text-shadow: 0 0 40px rgba(218,190,150,0.3);
+    }
+    #overlay p {
+      font-size: 1rem; color: rgba(218,190,150,0.5); letter-spacing: 0.15em;
+      font-weight: 300;
+    }
+    #overlay .start-hint {
+      margin-top: 2.5rem; font-size: 0.8rem; color: rgba(218,190,150,0.35);
+      letter-spacing: 0.2em; animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{ opacity:0.35 } 50%{ opacity:0.7 } }
+    #hud {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      color: rgba(218,190,150,0.3); font-size: 0.7rem; letter-spacing: 0.15em;
+      z-index: 10; pointer-events: none; text-align: center; line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <h1>VIRTUAL PIANO</h1>
+    <p>made by <a href="https://www.instagram.com/janustiu/" target="_blank" rel="noopener noreferrer" style="color:rgba(218,190,150,0.7);text-decoration:none;border-bottom:1px solid rgba(218,190,150,0.25);transition:color 0.3s,border-color 0.3s;" onmouseover="this.style.color='rgba(218,190,150,1)';this.style.borderColor='rgba(218,190,150,0.6)'" onmouseout="this.style.color='rgba(218,190,150,0.7)';this.style.borderColor='rgba(218,190,150,0.25)'">@janustiu</a></p>
+    <div class="start-hint">CLICK ANYWHERE TO BEGIN</div>
+  </div>
+  <canvas id="canvas"></canvas>
+  <div id="hud">USE KEYBOARD KEYS &nbsp;A S D F G H J K L ; ' &nbsp;&&nbsp; W E T Y U O P &nbsp; TO PLAY<br>DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM &nbsp;·&nbsp; RIGHT-DRAG TO PAN</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Piano note frequencies for 2 octaves starting from C4
+    const NOTE_DATA = [
+      { note: 'C4',  freq: 261.63, type: 'white', key: 'a' },
+      { note: 'C#4', freq: 277.18, type: 'black', key: 'w' },
+      { note: 'D4',  freq: 293.66, type: 'white', key: 's' },
+      { note: 'D#4', freq: 311.13, type: 'black', key: 'e' },
+      { note: 'E4',  freq: 329.63, type: 'white', key: 'd' },
+      { note: 'F4',  freq: 349.23, type: 'white', key: 'f' },
+      { note: 'F#4', freq: 369.99, type: 'black', key: 't' },
+      { note: 'G4',  freq: 392.00, type: 'white', key: 'g' },
+      { note: 'G#4', freq: 415.30, type: 'black', key: 'y' },
+      { note: 'A4',  freq: 440.00, type: 'white', key: 'h' },
+      { note: 'A#4', freq: 466.16, type: 'black', key: 'u' },
+      { note: 'B4',  freq: 493.88, type: 'white', key: 'j' },
+      { note: 'C5',  freq: 523.25, type: 'white', key: 'k' },
+      { note: 'C#5', freq: 554.37, type: 'black', key: 'o' },
+      { note: 'D5',  freq: 587.33, type: 'white', key: 'l' },
+      { note: 'D#5', freq: 622.25, type: 'black', key: 'p' },
+      { note: 'E5',  freq: 659.25, type: 'white', key: ';' },
+      { note: 'F5',  freq: 698.46, type: 'white', key: "'" },
+    ];
+
+    // Synth engine - realistic piano-like sound
+    function playPianoNote(freq, velocity = 0.7) {
+      const now = audioCtx.currentTime;
+      const dur = 3.5;
+
+      const master = audioCtx.createGain();
+      master.gain.setValueAtTime(0, now);
+      master.gain.linearRampToValueAtTime(velocity * 0.35, now + 0.005);
+      master.gain.exponentialRampToValueAtTime(velocity * 0.2, now + 0.08);
+      master.gain.exponentialRampToValueAtTime(velocity * 0.12, now + 0.5);
+      master.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      master.connect(audioCtx.destination);
+
+      // Fundamental
+      const osc1 = audioCtx.createOscillator();
+      const g1 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(freq, now);
+      g1.gain.setValueAtTime(1.0, now);
+      osc1.connect(g1); g1.connect(master);
+      osc1.start(now); osc1.stop(now + dur);
+
+      // 2nd harmonic
+      const osc2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(freq * 2, now);
+      g2.gain.setValueAtTime(0.4, now);
+      g2.gain.exponentialRampToValueAtTime(0.01, now + dur * 0.6);
+      osc2.connect(g2); g2.connect(master);
+      osc2.start(now); osc2.stop(now + dur);
+
+      // 3rd harmonic
+      const osc3 = audioCtx.createOscillator();
+      const g3 = audioCtx.createGain();
+      osc3.type = 'sine';
+      osc3.frequency.setValueAtTime(freq * 3, now);
+      g3.gain.setValueAtTime(0.15, now);
+      g3.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.4);
+      osc3.connect(g3); g3.connect(master);
+      osc3.start(now); osc3.stop(now + dur);
+
+      // 4th harmonic for brightness
+      const osc4 = audioCtx.createOscillator();
+      const g4 = audioCtx.createGain();
+      osc4.type = 'sine';
+      osc4.frequency.setValueAtTime(freq * 4, now);
+      g4.gain.setValueAtTime(0.07, now);
+      g4.gain.exponentialRampToValueAtTime(0.001, now + dur * 0.25);
+      osc4.connect(g4); g4.connect(master);
+      osc4.start(now); osc4.stop(now + dur);
+
+      // Hammer noise
+      const bufferSize = audioCtx.sampleRate * 0.04;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const nGain = audioCtx.createGain();
+      nGain.gain.setValueAtTime(velocity * 0.15, now);
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      const nFilter = audioCtx.createBiquadFilter();
+      nFilter.type = 'bandpass';
+      nFilter.frequency.setValueAtTime(freq * 2.5, now);
+      nFilter.Q.setValueAtTime(2, now);
+      noise.connect(nFilter); nFilter.connect(nGain); nGain.connect(master);
+      noise.start(now); noise.stop(now + 0.05);
+    }
+
+    // Three.js setup
+    const canvas = document.getElementById('canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0c);
+    scene.fog = new THREE.FogExp2(0x0a0a0c, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 5.5, 7.5);
+    camera.lookAt(0, 0.5, 0);
+
+    // Lighting - cinematic
+    const ambientLight = new THREE.AmbientLight(0x1a1520, 0.4);
+    scene.add(ambientLight);
+
+    const mainLight = new THREE.SpotLight(0xffeedd, 1.5, 30, Math.PI / 5, 0.6, 1);
+    mainLight.position.set(0, 10, 4);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.set(2048, 2048);
+    mainLight.shadow.bias = -0.0001;
+    scene.add(mainLight);
+
+    const rimLight = new THREE.DirectionalLight(0x4466aa, 0.3);
+    rimLight.position.set(-5, 3, -3);
+    scene.add(rimLight);
+
+    const warmFill = new THREE.PointLight(0xffaa66, 0.4, 15);
+    warmFill.position.set(5, 4, 2);
+    scene.add(warmFill);
+
+    const coolFill = new THREE.PointLight(0x4488cc, 0.2, 15);
+    coolFill.position.set(-5, 3, 5);
+    scene.add(coolFill);
+
+    // Floor
+    const floorGeo = new THREE.PlaneGeometry(50, 50);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x0d0d10, roughness: 0.85, metalness: 0.1
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.5;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Key dimensions (matching reference photo proportions)
+    const WHITE_WIDTH = 0.95;
+    const WHITE_DEPTH = 5.5;
+    const WHITE_HEIGHT = 0.7;
+    const BLACK_WIDTH = 0.55;
+    const BLACK_DEPTH = 3.3;
+    const BLACK_HEIGHT = 0.55;
+    const GAP = 0.06;
+
+    const keys3D = [];
+    const glowLights = [];
+    const keyStates = {};
+
+    // Materials
+    const whiteMat = new THREE.MeshStandardMaterial({
+      color: 0xf8f5f0, roughness: 0.25, metalness: 0.02
+    });
+    const whitePressMat = new THREE.MeshStandardMaterial({
+      color: 0xf0ece5, roughness: 0.25, metalness: 0.02
+    });
+    const blackMat = new THREE.MeshStandardMaterial({
+      color: 0x111111, roughness: 0.4, metalness: 0.05
+    });
+    const blackPressMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a, roughness: 0.4, metalness: 0.05
+    });
+
+    // Build keyboard
+    let whiteIndex = 0;
+    const totalWhite = NOTE_DATA.filter(n => n.type === 'white').length;
+    const totalWidth = totalWhite * (WHITE_WIDTH + GAP) - GAP;
+    const startX = -totalWidth / 2 + WHITE_WIDTH / 2;
+
+    NOTE_DATA.forEach((noteInfo, i) => {
+      let mesh, pivotGroup;
+      pivotGroup = new THREE.Group();
+
+      if (noteInfo.type === 'white') {
+        // White key - beveled look using a group of meshes
+        const bodyGeo = new THREE.BoxGeometry(WHITE_WIDTH, WHITE_HEIGHT, WHITE_DEPTH);
+        // Slightly bevel top edges
+        const body = new THREE.Mesh(bodyGeo, whiteMat.clone());
+        body.castShadow = true;
+        body.receiveShadow = true;
+
+        // Top surface highlight strip
+        const topGeo = new THREE.BoxGeometry(WHITE_WIDTH - 0.04, 0.02, WHITE_DEPTH - 0.04);
+        const topMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff, roughness: 0.15, metalness: 0.0
+        });
+        const topSurface = new THREE.Mesh(topGeo, topMat);
+        topSurface.position.y = WHITE_HEIGHT / 2 + 0.01;
+        topSurface.castShadow = false;
+
+        const keyGroup = new THREE.Group();
+        keyGroup.add(body);
+        keyGroup.add(topSurface);
+
+        const x = startX + whiteIndex * (WHITE_WIDTH + GAP);
+        // Pivot at the back top edge of the key
+        pivotGroup.position.set(x, WHITE_HEIGHT / 2, -WHITE_DEPTH / 2);
+        keyGroup.position.set(0, 0, WHITE_DEPTH / 2);
+        pivotGroup.add(keyGroup);
+
+        mesh = keyGroup;
+        whiteIndex++;
+
+        // Glow light
+        const glow = new THREE.PointLight(0xffeebb, 0, 2.5);
+        glow.position.set(0, WHITE_HEIGHT / 2 + 0.1, WHITE_DEPTH * 0.65);
+        pivotGroup.add(glow);
+        glowLights.push(glow);
+
+      } else {
+        // Black key
+        const bodyGeo = new THREE.BoxGeometry(BLACK_WIDTH, BLACK_HEIGHT, BLACK_DEPTH);
+        const body = new THREE.Mesh(bodyGeo, blackMat.clone());
+        body.castShadow = true;
+        body.receiveShadow = true;
+
+        // Rounded top
+        const topGeo = new THREE.BoxGeometry(BLACK_WIDTH - 0.02, 0.04, BLACK_DEPTH - 0.3);
+        const topMat = new THREE.MeshStandardMaterial({
+          color: 0x222222, roughness: 0.3, metalness: 0.1
+        });
+        const topSurface = new THREE.Mesh(topGeo, topMat);
+        topSurface.position.y = BLACK_HEIGHT / 2 + 0.02;
+        topSurface.position.z = -0.15;
+
+        const keyGroup = new THREE.Group();
+        keyGroup.add(body);
+        keyGroup.add(topSurface);
+
+        // Position black key between its adjacent white keys
+        const prevWhiteIdx = whiteIndex - 1;
+        const x = startX + prevWhiteIdx * (WHITE_WIDTH + GAP) + (WHITE_WIDTH + GAP) / 2;
+
+        pivotGroup.position.set(x, WHITE_HEIGHT + BLACK_HEIGHT / 2, -BLACK_DEPTH / 2 + 0.1);
+        keyGroup.position.set(0, 0, BLACK_DEPTH / 2 - 0.1);
+        pivotGroup.add(keyGroup);
+
+        mesh = keyGroup;
+
+        // Glow light for black keys
+        const glow = new THREE.PointLight(0xddaa55, 0, 2.0);
+        glow.position.set(0, BLACK_HEIGHT / 2 + 0.1, BLACK_DEPTH * 0.5);
+        pivotGroup.add(glow);
+        glowLights.push(glow);
+      }
+
+      scene.add(pivotGroup);
+
+      keys3D.push({
+        noteInfo,
+        pivot: pivotGroup,
+        mesh,
+        targetRotation: 0,
+        currentRotation: 0,
+        glowIntensity: 0,
+        glowTarget: 0,
+        index: i,
+        glowLight: glowLights[glowLights.length - 1],
+        pressed: false
+      });
+
+      keyStates[noteInfo.key] = keys3D[keys3D.length - 1];
+    });
+
+    // Piano body/frame
+    const bodyWidth = totalWidth + 1.2;
+    const bodyGeo = new THREE.BoxGeometry(bodyWidth, 0.6, WHITE_DEPTH + 1.5);
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0x0e0e0e, roughness: 0.6, metalness: 0.15
+    });
+    const pianoBody = new THREE.Mesh(bodyGeo, bodyMat);
+    pianoBody.position.set(0, -0.3, -0.25);
+    pianoBody.castShadow = true;
+    pianoBody.receiveShadow = true;
+    scene.add(pianoBody);
+
+    // Back rail
+    const backRailGeo = new THREE.BoxGeometry(bodyWidth, 1.8, 0.4);
+    const backRailMat = new THREE.MeshStandardMaterial({
+      color: 0x0c0c0c, roughness: 0.5, metalness: 0.2
+    });
+    const backRail = new THREE.Mesh(backRailGeo, backRailMat);
+    backRail.position.set(0, 0.6, -WHITE_DEPTH / 2 - 0.4);
+    backRail.castShadow = true;
+    scene.add(backRail);
+
+    // Side cheeks
+    [-1, 1].forEach(side => {
+      const cheekGeo = new THREE.BoxGeometry(0.35, 1.5, WHITE_DEPTH + 1.0);
+      const cheek = new THREE.Mesh(cheekGeo, bodyMat.clone());
+      cheek.position.set(side * (totalWidth / 2 + 0.42), 0.3, -0.0);
+      cheek.castShadow = true;
+      scene.add(cheek);
+    });
+
+    // Raycaster for mouse interaction
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function getClickedKey(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      // Check black keys first (they're on top)
+      const blackKeys = keys3D.filter(k => k.noteInfo.type === 'black');
+      const whiteKeys = keys3D.filter(k => k.noteInfo.type === 'white');
+
+      for (const keyObj of blackKeys) {
+        const intersects = raycaster.intersectObjects(keyObj.mesh.children, true);
+        if (intersects.length > 0) return keyObj;
+      }
+      for (const keyObj of whiteKeys) {
+        const intersects = raycaster.intersectObjects(keyObj.mesh.children, true);
+        if (intersects.length > 0) return keyObj;
+      }
+      return null;
+    }
+
+    function pressKey(keyObj) {
+      if (keyObj.pressed) return;
+      keyObj.pressed = true;
+      const maxAngle = keyObj.noteInfo.type === 'white' ? 0.04 : 0.05;
+      keyObj.targetRotation = maxAngle;
+      keyObj.glowTarget = keyObj.noteInfo.type === 'white' ? 3.0 : 2.0;
+      playPianoNote(keyObj.noteInfo.freq, 0.7);
+    }
+
+    function releaseKey(keyObj) {
+      keyObj.pressed = false;
+      keyObj.targetRotation = 0;
+      keyObj.glowTarget = 0;
+    }
+
+    // Mouse/touch events managed by orbit controller below
+    let mouseDownKey = null;
+
+    // Keyboard events
+    const activeKeyboardKeys = new Set();
+    document.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      const key = e.key.toLowerCase();
+      if (keyStates[key] && !activeKeyboardKeys.has(key)) {
+        activeKeyboardKeys.add(key);
+        pressKey(keyStates[key]);
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      const key = e.key.toLowerCase();
+      if (keyStates[key] && activeKeyboardKeys.has(key)) {
+        activeKeyboardKeys.delete(key);
+        releaseKey(keyStates[key]);
+      }
+    });
+
+    // Orbit camera controls (custom, no external lib)
+    const orbitState = {
+      spherical: { radius: 9.3, phi: Math.PI / 3.2, theta: 0 },
+      target: new THREE.Vector3(0, 0.5, 0),
+      isDragging: false,
+      isRightDragging: false,
+      lastMouse: { x: 0, y: 0 },
+      autoRotate: true,
+      autoRotateSpeed: 0.08,
+      minRadius: 4,
+      maxRadius: 22,
+      minPhi: 0.15,
+      maxPhi: Math.PI / 2 - 0.05,
+      damping: { theta: 0, phi: 0 },
+    };
+
+    function updateCameraFromSpherical() {
+      const s = orbitState.spherical;
+      s.phi = Math.max(orbitState.minPhi, Math.min(orbitState.maxPhi, s.phi));
+      s.radius = Math.max(orbitState.minRadius, Math.min(orbitState.maxRadius, s.radius));
+      camera.position.set(
+        orbitState.target.x + s.radius * Math.sin(s.phi) * Math.sin(s.theta),
+        orbitState.target.y + s.radius * Math.cos(s.phi),
+        orbitState.target.z + s.radius * Math.sin(s.phi) * Math.cos(s.theta)
+      );
+      camera.lookAt(orbitState.target);
+    }
+    updateCameraFromSpherical();
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 2 || e.button === 1) {
+        orbitState.isRightDragging = true;
+        orbitState.lastMouse = { x: e.clientX, y: e.clientY };
+        orbitState.autoRotate = false;
+        e.preventDefault();
+        return;
+      }
+      // Left click: try key first, else orbit
+      const key = getClickedKey(e);
+      if (key) {
+        pressKey(key);
+        mouseDownKey = key;
+      } else {
+        orbitState.isDragging = true;
+        orbitState.lastMouse = { x: e.clientX, y: e.clientY };
+        orbitState.autoRotate = false;
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (orbitState.isDragging) {
+        const dx = e.clientX - orbitState.lastMouse.x;
+        const dy = e.clientY - orbitState.lastMouse.y;
+        orbitState.spherical.theta -= dx * 0.005;
+        orbitState.spherical.phi -= dy * 0.005;
+        orbitState.damping.theta = -dx * 0.002;
+        orbitState.damping.phi = -dy * 0.002;
+        orbitState.lastMouse = { x: e.clientX, y: e.clientY };
+        updateCameraFromSpherical();
+      }
+      if (orbitState.isRightDragging) {
+        const dx = e.clientX - orbitState.lastMouse.x;
+        const dy = e.clientY - orbitState.lastMouse.y;
+        const panRight = new THREE.Vector3();
+        const panUp = new THREE.Vector3();
+        panRight.setFromMatrixColumn(camera.matrix, 0);
+        panUp.setFromMatrixColumn(camera.matrix, 1);
+        const panScale = orbitState.spherical.radius * 0.002;
+        orbitState.target.addScaledVector(panRight, -dx * panScale);
+        orbitState.target.addScaledVector(panUp, dy * panScale);
+        orbitState.lastMouse = { x: e.clientX, y: e.clientY };
+        updateCameraFromSpherical();
+      }
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      if (orbitState.isDragging) { orbitState.isDragging = false; }
+      if (orbitState.isRightDragging) { orbitState.isRightDragging = false; }
+      if (mouseDownKey) {
+        releaseKey(mouseDownKey);
+        mouseDownKey = null;
+      }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      orbitState.spherical.radius *= 1 + e.deltaY * 0.001;
+      orbitState.spherical.radius = Math.max(orbitState.minRadius, Math.min(orbitState.maxRadius, orbitState.spherical.radius));
+      orbitState.autoRotate = false;
+      updateCameraFromSpherical();
+    }, { passive: false });
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Touch orbit support (two-finger rotate/pinch zoom)
+    let lastTouchDist = 0;
+    let lastTouchCenter = { x: 0, y: 0 };
+    let touchMode = null; // 'play', 'orbit', 'pinch'
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const key = getClickedKey(touch);
+        if (key) {
+          pressKey(key);
+          mouseDownKey = key;
+          touchMode = 'play';
+        } else {
+          touchMode = 'orbit';
+          orbitState.lastMouse = { x: touch.clientX, y: touch.clientY };
+          orbitState.autoRotate = false;
+        }
+      } else if (e.touches.length === 2) {
+        touchMode = 'pinch';
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+        lastTouchCenter = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+        };
+        orbitState.autoRotate = false;
+        if (mouseDownKey) { releaseKey(mouseDownKey); mouseDownKey = null; }
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (touchMode === 'orbit' && e.touches.length === 1) {
+        const touch = e.touches[0];
+        const dx = touch.clientX - orbitState.lastMouse.x;
+        const dy = touch.clientY - orbitState.lastMouse.y;
+        orbitState.spherical.theta -= dx * 0.005;
+        orbitState.spherical.phi -= dy * 0.005;
+        orbitState.lastMouse = { x: touch.clientX, y: touch.clientY };
+        updateCameraFromSpherical();
+      }
+      if (touchMode === 'pinch' && e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        orbitState.spherical.radius *= lastTouchDist / dist;
+        orbitState.spherical.radius = Math.max(orbitState.minRadius, Math.min(orbitState.maxRadius, orbitState.spherical.radius));
+        lastTouchDist = dist;
+        // two-finger pan
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const panRight = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+        const panUp = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+        const ps = orbitState.spherical.radius * 0.002;
+        orbitState.target.addScaledVector(panRight, -(cx - lastTouchCenter.x) * ps);
+        orbitState.target.addScaledVector(panUp, (cy - lastTouchCenter.y) * ps);
+        lastTouchCenter = { x: cx, y: cy };
+        updateCameraFromSpherical();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (mouseDownKey) { releaseKey(mouseDownKey); mouseDownKey = null; }
+      if (e.touches.length === 0) touchMode = null;
+    }, { passive: false });
+
+    // Overlay click
+    const overlay = document.getElementById('overlay');
+    overlay.addEventListener('click', () => {
+      audioCtx.resume();
+      overlay.classList.add('hidden');
+    });
+
+    // Animation
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const time = clock.getElapsedTime();
+
+      // Auto-rotate sway when idle
+      if (orbitState.autoRotate) {
+        orbitState.spherical.theta += delta * orbitState.autoRotateSpeed * 0.15;
+        updateCameraFromSpherical();
+      } else {
+        // Momentum damping
+        if (Math.abs(orbitState.damping.theta) > 0.0001) {
+          orbitState.spherical.theta += orbitState.damping.theta;
+          orbitState.damping.theta *= 0.92;
+          updateCameraFromSpherical();
+        }
+      }
+
+      // Animate keys
+      keys3D.forEach(keyObj => {
+        // Smooth rotation
+        const rotSpeed = keyObj.pressed ? 18 : 10;
+        keyObj.currentRotation += (keyObj.targetRotation - keyObj.currentRotation) * Math.min(1, delta * rotSpeed);
+        keyObj.pivot.rotation.x = keyObj.currentRotation;
+
+        // Smooth glow
+        const glowSpeed = keyObj.pressed ? 15 : 5;
+        keyObj.glowIntensity += (keyObj.glowTarget - keyObj.glowIntensity) * Math.min(1, delta * glowSpeed);
+        keyObj.glowLight.intensity = keyObj.glowIntensity;
+      });
+
+      // Subtle light animation
+      mainLight.intensity = 1.5 + Math.sin(time * 0.5) * 0.1;
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+<div style="position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:99999;font-family:Inter,system-ui,sans-serif;font-size:11px;letter-spacing:.18em;text-transform:uppercase;padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);pointer-events:none">Megsy Templates</div></body>
+</html>

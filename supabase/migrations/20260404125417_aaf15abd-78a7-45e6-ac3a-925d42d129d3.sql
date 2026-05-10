@@ -1,0 +1,1 @@
+CREATE POLICY "Service role only api_keys" ON public.api_keys FOR ALL TO service_role USING (true) WITH CHECK (true);

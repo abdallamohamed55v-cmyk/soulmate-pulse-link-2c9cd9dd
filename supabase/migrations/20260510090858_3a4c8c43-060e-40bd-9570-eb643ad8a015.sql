@@ -1,0 +1,1 @@
+SELECT public.add_credits('19e72636-65b6-4995-bd03-abca494ca8f3'::uuid, 1000, 'QA smoke test top-up');
