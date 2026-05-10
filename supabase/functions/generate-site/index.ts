@@ -125,12 +125,22 @@ Deno.serve(async (req) => {
     const prompt: string = String(body?.prompt || "").slice(0, 4000);
     const kind: string = String(body?.kind || "site");
     const isSlides = kind === "slides";
-    const enableSearch: boolean = body?.search !== false; // default true for slides
     const templateName: string = String(body?.templateName || body?.template || "");
-    const templateHtml: string = String(body?.templateHtml || "");
-    if (isSlides && !templateHtml) throw new Error("templateHtml is required for slides");
+    const rawTemplateHtml: string = String(body?.templateHtml || "");
+    if (isSlides && !rawTemplateHtml) throw new Error("templateHtml is required for slides");
 
-    const model: string = body?.model || (isSlides ? "google/gemini-2.5-flash" : "deepseek/deepseek-chat-v3.1");
+    // ─── TOKEN GUARD ───────────────────────────────────────────────
+    // Compress the template HTML to ~9KB of visual DNA so we don't ship
+    // 100KB+ to the model. Combined with smaller output target this keeps
+    // total request well under 30K tokens (vs 100K+ before).
+    const templateHtml = isSlides ? compressTemplate(rawTemplateHtml, 9000) : rawTemplateHtml;
+
+    // FREE strong model from OpenRouter (1M ctx, no per-token cost).
+    // Falls back automatically inside the model chain on the gateway.
+    const model: string = body?.model
+      || (isSlides
+        ? "deepseek/deepseek-chat-v3.1:free"
+        : "deepseek/deepseek-chat-v3.1");
     if (!prompt) throw new Error("prompt is required");
 
     const { data: site, error: insErr } = await admin
@@ -156,17 +166,6 @@ Deno.serve(async (req) => {
         send({ step: "starting", message: isSlides ? "🎯 Preparing slide deck" : "Generating site" });
 
         try {
-          let researchBrief = "";
-          if (isSlides && enableSearch) {
-            send({ step: "research", message: "🔎 Searching the web for fresh facts..." });
-            researchBrief = await researchTopic(prompt, OPENROUTER_API_KEY);
-            if (researchBrief) {
-              send({ step: "research_done", message: `✅ Research complete (${researchBrief.length} chars)` });
-            } else {
-              send({ step: "research_skipped", message: "ℹ️ Skipped web research" });
-            }
-          }
-
           send({ step: "outlining", message: "📐 Designing layout & content patterns" });
 
           const systemPrompt = isSlides
@@ -176,9 +175,8 @@ Deno.serve(async (req) => {
           const userPrompt = isSlides
             ? [
                 `USER BRIEF:\n${prompt}`,
-                researchBrief ? `\nRESEARCH FACTS (use these — cite numbers verbatim):\n${researchBrief}` : "",
                 `\nTEMPLATE NAME: ${templateName}`,
-                `\nTEMPLATE HTML (modify this — keep design DNA, expand content massively, follow ALL strict rules):\n\n${templateHtml}`,
+                `\nTEMPLATE VISUAL DNA (head/CSS + first section — REUSE the styles, fonts, color palette and design language. EXPAND the body into 12-20 distinct sections of fresh content):\n\n${templateHtml}`,
               ].join("\n")
             : prompt;
 
@@ -199,8 +197,8 @@ Deno.serve(async (req) => {
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt },
               ],
-              temperature: isSlides ? 0.55 : 0.8,
-              max_tokens: isSlides ? 32000 : 9000,
+              temperature: isSlides ? 0.6 : 0.8,
+              max_tokens: isSlides ? 14000 : 9000,
             }),
           });
 
