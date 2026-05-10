@@ -883,6 +883,7 @@ const FilesPage = () => {
         open={pickerOpen}
         templates={pickerTemplates}
         selectedId={selectedTemplate?.id}
+        showCategoryTabs={isSlides}
         onSelect={(t) => {
           const full = currentTemplates.find(x => x.id === t.id);
           if (full) setSelectedTemplate(full);
