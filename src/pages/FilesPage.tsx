@@ -323,7 +323,8 @@ const FilesPage = () => {
   const showTemplates = !!currentKindMeta?.hasTemplates;
   const isSlides = selectedKind === "slides";
 
-  // Load templates: slides combine our in-house "premium" + external DDS "standard"
+  // Load templates: slides combine internal "premium" + external DDS "standard";
+  // document/report/letter/resume come from our internal document_templates table.
   useEffect(() => {
     (async () => {
       const grouped: Record<string, Template[]> = {};
@@ -341,11 +342,11 @@ const FilesPage = () => {
         }
       } catch {}
 
-      // Pull custom uploaded thumbnails (Telegram bot)
-      const imgMap = new Map<string, string>();
+      // Pull custom uploaded thumbnails (Telegram bot) for slides
+      const slidesImgMap = new Map<string, string>();
       try {
         const { data } = await supabase.from("template_images").select("template_id, image_url");
-        for (const r of (data || [])) imgMap.set(r.template_id, r.image_url);
+        for (const r of (data || [])) slidesImgMap.set(r.template_id, r.image_url);
       } catch {}
 
       const premiumSlides: Template[] = LANDING_TEMPLATES.map((t, i) => ({
@@ -353,7 +354,7 @@ const FilesPage = () => {
         id: t.id,
         name: t.name,
         description: t.description,
-        preview: imgMap.get(t.id) || "", // gradient fallback if none
+        preview: slidesImgMap.get(t.id) || "",
         folder: t.folder,
         category: t.category,
         order: i,
@@ -361,10 +362,40 @@ const FilesPage = () => {
 
       const standardWithImages = ddsSlides.map(t => ({
         ...t,
-        preview: imgMap.get(t.id) || "",
+        preview: slidesImgMap.get(t.id) || "",
       }));
 
       grouped.slides = [...premiumSlides, ...standardWithImages];
+
+      // Document templates from our table — overrides DDS for these kinds
+      try {
+        const [{ data: docTpls }, { data: docImgs }] = await Promise.all([
+          supabase.from("document_templates").select("id, kind, name, description, category, sort_order").order("sort_order"),
+          supabase.from("document_template_images").select("template_id, image_url"),
+        ]);
+        const docImgMap = new Map<string, string>();
+        for (const r of (docImgs || [])) docImgMap.set(r.template_id, r.image_url);
+        for (const t of (docTpls || [])) {
+          (grouped[t.kind] = grouped[t.kind] || []);
+          // Replace any DDS entry with the same id, otherwise append
+          const existing = grouped[t.kind].findIndex(x => x.id === t.id);
+          const tpl: Template = {
+            type: t.kind as Kind,
+            id: t.id,
+            name: t.name,
+            description: t.description || undefined,
+            preview: docImgMap.get(t.id) || "",
+            category: (t.category as any) || "standard",
+            order: t.sort_order || 0,
+          };
+          if (existing >= 0) grouped[t.kind][existing] = tpl;
+          else grouped[t.kind].push(tpl);
+        }
+        // Sort each doc kind by order
+        for (const k of ["document", "report", "letter", "resume"] as Kind[]) {
+          if (grouped[k]) grouped[k].sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+      } catch {}
 
       setTemplatesByKind(grouped);
     })();
