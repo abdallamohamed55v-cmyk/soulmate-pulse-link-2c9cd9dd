@@ -1,98 +1,79 @@
+# خطة إعادة بناء قوالب المستندات
 
-## الهدف
+نبدأ من الصفر بأسلوب **Editorial Magazine** حديث (مستوحى من Editorial New, Pitchfork redesign, The Browser Company, Are.na, Vellum). الفكرة: تايبوغرافي كبيرة جدًا، Serif معبّر، مساحات بيضاء سخية، Drop caps، Pull quotes، أرقام Mono، شبكات غير متماثلة، أكسنت لون واحد قوي.
 
-استبدال نظام السلايدس الحالي المعتمد على خدمة DDS الخارجية بنظام داخلي يولد **مواقع Landing Page كاملة** (وليس سلايدس) عبر OpenRouter، مع streaming حر للـ AI، ويُعرض الناتج كموقع حقيقي في iframe + route عام للمشاركة.
+## 1. الهيكل الجديد (مهم)
 
-## المكدس التقني
+النظام الحالي بيختار الثيم حسب `kind` فقط. هنغيره بحيث كل **قالب فردي** له هويته الخاصة (Theme + HTML shell + system prompt hints). يعني `themeFor(kind, template)` تبقى `themeFor(template)` بتاعت قالب محدد بـ `template.id`.
 
-- **مزود AI**: OpenRouter (مفتاح واحد للوصول لجميع النماذج).
-- **النموذج المقترح** (رخيص + قوي جداً في البرمجة):
-  - **`deepseek/deepseek-chat-v3.1`** — الأفضل سعراً/أداءً للـ JSX (~$0.27/M input، $1.10/M output).
-  - بديل أرخص: `qwen/qwen3-coder` أو `deepseek/deepseek-chat`.
-  - يُحفظ كمتغير قابل للتعديل في الـ edge function.
-- **صيغة المخرج**: مكونات React/JSX خام تُجمع في صفحة واحدة.
-- **العرض**: مزدوج — iframe بـ srcdoc للمعاينة الفورية + route ديناميكي `/site/:id` للمشاركة.
+## 2. القوالب الـ12 المقترحة (3 لكل نوع)
 
-## التغييرات في قاعدة البيانات
+### Document (مستند عام)
+1. **Broadsheet** — Serif ضخم (Fraunces 96px)، خلفية كريمي `#fbf7f5`، أكسنت برتقالي محروق `#e84c2b`، Drop cap في أول فقرة، Pull quotes مائلة كبيرة، أرقام صفحات Mono.
+2. **Quiet** — أبيض نقي، Sans أنيق (Inter Tight)، أعمدة ضيقة محاذاة وسط، خط فاصل ذهبي رفيع، مينيمال راقي شبه Apple Newsroom.
+3. **Manuscript** — خلفية ورق `#f4ede0`، Serif كلاسيكي (Cormorant)، أرقام أقسام رومانية، حواشي جانبية، شكل كتاب أدبي.
 
-استبدال جدول السلايدس الحالي:
+### Report (تقرير)
+1. **Quarterly** — كريمي/أسود، Display Serif للعناوين + Mono للأرقام الكبيرة، جداول KPI بحدود رفيعة، Callouts ملونة، Footnotes مرقمة.
+2. **Field Notes** — خلفية كرافت `#e8dfce`، Serif مكتبي، Sidebar بأرقام إحصائية ضخمة، شكل تقرير بحثي.
+3. **Briefing** — أبيض، شبكة 12 عمود، عناوين Sans عريضة قصيرة، Executive summary في صندوق ملوّن أعلى الصفحة، Bullets مع Dividers.
 
-**جدول جديد `generated_sites`:**
-- `id`, `user_id`, `title`, `prompt`
-- `jsx_code` (text) — كود JSX المولد كاملاً
-- `html_compiled` (text) — HTML نهائي مع Tailwind CDN للعرض في iframe
-- `model_used`, `tokens_used`
-- `share_slug` (unique) — للرابط العام
-- `is_public` (bool), `status` (generating/completed/failed)
-- `created_at`, `updated_at`
-- RLS: المالك يدير، والعموم يقرؤون عند `is_public=true`.
+### Letter (خطاب)
+1. **Correspondence** — كريمي، Serif يدوي (Fraunces Italic للتحية)، توقيع بخط مختلف، تاريخ يمين علوي بـ Mono، شكل خطاب شخصي راقي.
+2. **Memorandum** — أبيض، Header بـ FROM/TO/RE/DATE في جدول Mono، نص Sans، شكل مذكرة شركات أنيقة.
+3. **Invitation** — خلفية داكنة `#0e0e10` + ذهبي `#c9a84c`، Serif إيطالي كبير وسط الصفحة، شكل دعوة فاخرة.
 
-**حذف/أرشفة**: `slide_templates`، `slide_template_palettes` (المرتبطة بالنظام القديم) — أو إبقاؤها مؤقتاً مع تعطيل الواجهة.
+### Resume (سيرة ذاتية)
+1. **Editorial CV** — كريمي، الاسم بـ Display Serif ضخم 88px، خلاصة بـ Pull quote، خبرات Timeline بأرقام Mono على اليسار، Skills كـ inline tags بدون حدود.
+2. **Two-Column** — يسار 35% (داكن، Avatar/Contact/Skills) + يمين 65% (أبيض، Experience). أنيق ومتوازن.
+3. **Minimalist** — أبيض كامل، Inter Tight، خط فاصل واحد فقط، أقسام مفصولة بمسافات واسعة، شكل Swiss نظيف للمناصب التقنية.
 
-## الـ Backend (Edge Function واحدة)
+## 3. تايبوغرافي وألوان موحّدة (Tokens)
 
-**`supabase/functions/generate-site/index.ts`**:
-
-1. يستقبل `{ prompt, siteId? }` من المستخدم المصادق.
-2. ينشئ سجلاً في `generated_sites` بحالة `generating`.
-3. يستدعي OpenRouter بـ `stream: true`:
-   - `Authorization: Bearer ${OPENROUTER_API_KEY}`
-   - System prompt حر يحث الـ AI على إبداع كامل في التصميم (hero, features, testimonials, pricing, CTA, footer) باستخدام Tailwind + Framer Motion + lucide icons.
-   - بدون JSON schema صارم — حرية كاملة للنموذج.
-4. يبث SSE مباشرة للعميل (نفس نمط `chat` في docs).
-5. عند الانتهاء: يجمع الكود الكامل، يحوّله لـ HTML قابل للعرض في iframe (Tailwind CDN + Babel standalone لتشغيل JSX داخل iframe بدون build)، يحفظه في DB، ويرسل event `[DONE]` مع `siteId`.
-
-**`generate-site/compile.ts`**: helper يلف JSX داخل قالب HTML مع:
-```html
-<script src="tailwindcss CDN"></script>
-<script src="babel standalone"></script>
-<script type="text/babel" data-presets="react">
-  // الكود المولد + ReactDOM.render
-</script>
+```
+--bg: #fbf7f5         /* كريمي ورق */
+--ink: #1a1614        /* أسود حبر */
+--muted: #6b6660
+--line: #e8e0d8
+--accent: #e84c2b     /* برتقالي محروق - hero */
+--accent-2: #c9a84c   /* ذهبي - secondary */
+--font-display: "Fraunces", "DM Serif Display", serif
+--font-body: "Inter Tight", system-ui
+--font-mono: "JetBrains Mono", monospace
 ```
 
-## Frontend
+كل قالب يبدّل 1-2 توكن فقط (مثلاً Manuscript يبدّل bg + display font).
 
-**استبدال صفحة السلايدس بـ:**
+## 4. عناصر الـ Editorial المشتركة
 
-1. **`/sites`** — قائمة المواقع المولدة للمستخدم (شبكة بطاقات بصور thumbnails من iframe).
-2. **`/sites/new`** — صفحة الإنشاء:
-   - حقل prompt كبير + زر "ولّد".
-   - أثناء التوليد: panel جانبي يعرض الكود يتدفق سطراً بسطر (Streaming).
-   - بجانبه iframe حي يُحدّث كل ثانية تقريباً بالكود التراكمي (live preview).
-3. **`/sites/:id`** — تحرير/إعادة توليد + معاينة كاملة.
-4. **`/site/:slug`** — Route عام (بدون auth) يعرض الموقع المولد كصفحة كاملة منفصلة عبر iframe ملء الشاشة، مع meta tags للـ SEO.
+- **H1 Hero**: `clamp(56px, 9vw, 128px)` Serif، line-height 0.95، حرف داخل `<em>` مائل بلون `--accent`
+- **Drop cap** على أول `<p>` بعد H1: `float:left; font-size:5em; line-height:0.85; padding:8px 12px 0 0; font-family: Serif`
+- **H2**: counter() مرقّمة بـ Mono صغير `01 — Section name` بخط Serif
+- **Pull quote**: `<blockquote>` بحجم 32-44px مائل، حد علوي وسفلي رفيع، بدون اقتباسات
+- **Tables**: حدود أفقية فقط، Header Mono uppercase tracking-wide
+- **Lead paragraph** (أول فقرة): حجم أكبر 1.25em، رمادي `--muted`
+- **Footer/Page chrome**: رقم صفحة Mono + اسم الوثيقة
 
-**مكون `LiveSitePreview`**: يستقبل JSX المتدفق، يلفه في HTML template، ويضعه في `<iframe srcDoc={html}>`.
+## 5. خطوات التنفيذ
 
-## التدفق الكامل
+1. **DB**: migration لإفراغ جدول `document_templates` وإدراج 12 صف جديد بـ id/kind/name/description/category/sort_order ثابتة. الـ id بيكون مفتاح للثيم (`broadsheet`, `quiet`, `manuscript`, ...).
+2. **generate-document/index.ts**:
+   - استبدال `themeFor` بدالة `themeForTemplate(templateId, kind)` ترجع Theme كامل.
+   - تحديث `buildHtmlShell` بحيث يستقبل templateId ويُولّد CSS مخصّص (Drop cap, counters, pull quotes, fonts).
+   - تحسين الـ system prompt لكل قالب (مثلاً Broadsheet يطلب Pull quote واحد على الأقل + lead paragraph).
+3. **معاينات (preview thumbnails)**: نولّد SVG previews مبسّطة بنفس الستايل لكل قالب يتعرضوا في الـ TemplatePicker (اختياري — يمكن تأجيله).
+4. **الواجهة**: ما تتغيرش — هي بتقرأ من الـ DB.
 
-```text
-User → /sites/new → كتابة prompt → POST /generate-site (stream)
-   ↓
-edge function → OpenRouter (deepseek-v3.1, stream:true)
-   ↓ (SSE chunks)
-Frontend ← يعرض الكود يكتب نفسه + iframe live preview يتحدث
-   ↓
-[DONE] → حفظ في DB → redirect /sites/:id → زر "نشر/شارك" → /site/:slug
-```
+## 6. ترتيب التسليم
 
-## Secrets المطلوبة
+نتفق على القوالب الـ12 → migration للـ DB → كود الـ edge function → اختبار توليد واحد من كل نوع → تكرار الصقل.
 
-- `OPENROUTER_API_KEY` (سيُطلب من المستخدم بعد الموافقة).
+---
 
-## نقاط مهمة
+## Technical details
 
-- **حرية الـ AI**: لا JSON schema، لا tool calling — فقط system prompt إبداعي + raw JSX output. نستخرج الكود من بين ` ```jsx ... ``` ` أو نأخذه كاملاً.
-- **الأمان**: iframe مع `sandbox="allow-scripts"` لعزل الكود المولد عن التطبيق الأم.
-- **التكلفة**: deepseek-v3.1 يولد صفحة كاملة (~5K tokens) بأقل من سنت واحد.
-- **النظام القديم**: نحذف edge functions: `generate-slides`, `slide-template-*` ونعطل route `/files` الخاص بالسلايدس.
+- ملف الـ edge function الحالي 496 سطر — التغيير يخص: حذف `themeFor` (سطر 34-69)، استبدال `buildHtmlShell` (سطر 71-318 تقريبًا)، وإضافة `TEMPLATE_THEMES` map.
+- جدول `document_templates` موجود بالفعل (أعمدة: id, kind, name, description, category, sort_order). الـ id كـ TEXT يخدم كمفتاح للثيم.
+- استخدام `@import` من Google Fonts داخل CSS الـ shell لجلب Fraunces / Inter Tight / JetBrains Mono / Cormorant.
+- لا تغييرات في الواجهة الأمامية ولا في فلو الجلب.
 
-## الخطوات بالترتيب
-
-1. إنشاء secret `OPENROUTER_API_KEY`.
-2. Migration: جدول `generated_sites` + RLS، أرشفة جداول السلايدس القديمة.
-3. Edge function `generate-site` مع SSE streaming من OpenRouter.
-4. Routes الجديدة: `/sites`, `/sites/new`, `/sites/:id`, `/site/:slug`.
-5. مكون `LiveSitePreview` للمعاينة المباشرة أثناء streaming.
-6. حذف/إخفاء واجهات السلايدس القديمة.
