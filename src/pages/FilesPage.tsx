@@ -352,6 +352,18 @@ async function generateProjectName(prompt: string): Promise<string> {
   return prompt.split(/\s+/).slice(0, 4).join(" ") || "New File";
 }
 
+async function aiSummary(args: {
+  kind: string; title: string; prompt: string;
+  templateName?: string; slideCount?: number; wordCount?: number;
+  fallback: string;
+}): Promise<string> {
+  try {
+    const { data } = await supabase.functions.invoke("summarize-generation", { body: args });
+    if (data?.summary) return String(data.summary);
+  } catch {}
+  return args.fallback;
+}
+
 async function captureThumb(html: string, fileName: string): Promise<string | null> {
   try {
     const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
