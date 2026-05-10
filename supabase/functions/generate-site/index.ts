@@ -216,8 +216,11 @@ Deno.serve(async (req) => {
     const kind: string = String(body?.kind || "site");
     const isSlides = kind === "slides";
     const templateName: string = String(body?.templateName || body?.template || "");
+    const templateFolder: string = String(body?.templateFolder || "");
     const rawTemplateHtml: string = String(body?.templateHtml || "");
     if (isSlides && !rawTemplateHtml) throw new Error("templateHtml is required for slides");
+    const imageQuery = isSlides ? buildImageQuery(prompt) : "";
+    const imageUrls = isSlides ? await fetchImageUrls(prompt) : [];
 
     // ─── TOKEN GUARD ───────────────────────────────────────────────
     // Compress the template HTML to ~9KB of visual DNA so we don't ship
@@ -263,7 +266,15 @@ Deno.serve(async (req) => {
           const userPrompt = isSlides
             ? [
                 `USER BRIEF:\n${prompt}`,
-                `\nTEMPLATE NAME: ${templateName}`,
+                `\nREQUESTED SLIDE COUNT: ${Math.max(8, Math.min(20, Number(body?.slideCount) || 12))}`,
+                `\nCONTENT DEPTH (1-5): ${Math.max(1, Math.min(5, Number(body?.contentDepth) || 3))}`,
+                `\nTEMPLATE LOCK: You MUST use this exact chosen template identity. Do not switch styles.`,
+                `TEMPLATE ID/FOLDER: ${templateFolder || templateName}`,
+                `TEMPLATE NAME: ${templateName}`,
+                `\nIMAGE TOPIC: ${imageQuery}`,
+                imageUrls.length
+                  ? `\nAPPROVED IMAGE URLS (use these exact working URLs before any other source, keep them relevant to the brief):\n${imageUrls.map((img, i) => `${i + 1}. ${img.url} — ALT: ${img.alt}`).join("\n")}`
+                  : `\nIMAGE FALLBACK: use https://source.unsplash.com/1600x900/?${encodeURIComponent(imageQuery)} with varied relevant keywords.`,
                 `\nTEMPLATE VISUAL DNA (head/CSS + first section — REUSE the styles, fonts, color palette and design language. EXPAND the body into 12-20 distinct sections of fresh content):\n\n${templateHtml}`,
               ].join("\n")
             : prompt;
@@ -336,6 +347,7 @@ Deno.serve(async (req) => {
             html = extractHtml(fullText);
             html = stripEmojis(html);
             if (!html || html.length < 200) throw new Error("Model returned empty HTML");
+            html = normalizeSlidesHtml(html, imageUrls, imageQuery);
             stored = html;
           } else {
             stored = extractCode(fullText);
