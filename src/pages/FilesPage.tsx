@@ -62,10 +62,12 @@ async function streamSlidesGeneration(
   const tpl = findLandingTemplate(options.template);
   let templateHtml = "";
   try {
-    const r = await fetch(tpl.path);
+    const r = await fetch(tpl.path, { cache: "no-store" });
     if (r.ok) templateHtml = await r.text();
   } catch {}
-  if (!templateHtml) throw new Error("Could not load template");
+  if (!templateHtml || !templateHtml.toLowerCase().includes("<html")) {
+    throw new Error(`Could not load template: ${tpl.name}`);
+  }
 
   onStatus("Megsy is warming up");
   onStep("Megsy is warming up");
@@ -80,6 +82,7 @@ async function streamSlidesGeneration(
       contentDepth: options.contentDepth,
       template: tpl.id,
       templateName: tpl.name,
+      templateFolder: tpl.folder,
       templateHtml,
     }),
     signal,
@@ -143,7 +146,7 @@ type Kind =
   | "slides" | "document" | "resume" | "report"
   | "spreadsheet" | "letter" | "roadmap" | "mindmap" | "timeline";
 
-interface Template { type: Kind; id: string; name: string; description?: string; preview?: string; style?: string; order?: number; }
+interface Template { type: Kind; id: string; name: string; description?: string; preview?: string; style?: string; order?: number; folder?: string; }
 interface DocsDoc { kind: Kind; template?: string; title?: string; [k: string]: any; }
 
 interface ChatMsg {
@@ -320,6 +323,7 @@ const FilesPage = () => {
         name: t.name,
         description: t.description,
         preview: t.preview,
+        folder: t.folder,
         order: i,
       }));
 
@@ -639,7 +643,7 @@ const FilesPage = () => {
   const showHero = messages.length === 0;
 
   const pickerTemplates: PickerTemplate[] = currentTemplates.map(t => ({
-    id: t.id, name: t.name, preview: t.preview, description: t.description,
+    id: t.id, name: t.name, preview: t.preview, description: t.description, fallbackLabel: t.name,
   }));
 
   return (
