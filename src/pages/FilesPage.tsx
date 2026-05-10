@@ -438,8 +438,8 @@ const FilesPage = () => {
         });
       };
 
-      // ───── Slides → internal generate-site edge function ─────
-      if (isSlides) {
+      // ───── Premium slides → internal generate-site edge function ─────
+      if (isSlides && (selectedTemplate?.category || "premium") === "premium") {
         const out = await streamSlidesGeneration(
           prompt,
           { slideCount, contentDepth, template: selectedTemplate?.id || DEFAULT_SLIDES_TEMPLATE },
