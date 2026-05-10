@@ -68,6 +68,49 @@ ABSOLUTE OUTPUT RULES (violation = failure)
 14. Return the FULL modified HTML document, ready to render in an iframe sandbox.
 
 15. TEMPLATE LOCK — The chosen template identity is provided as TEMPLATE ID/FOLDER and TEMPLATE NAME. Preserve that template's visual character exactly. Do not borrow layout, colors, or motion from any other template.
+
+16. ✅ MOBILE-FIRST RESPONSIVE (NON-NEGOTIABLE) — the deck MUST look beautiful on phones (320–480px), tablets (768px), and desktop (1280px+). Failures here are the #1 reason this is rejected.
+    Apply these rules to EVERY section without exception:
+
+    a) TYPOGRAPHY — always use mobile-first responsive type scales. Never ship a single huge size.
+       - Hero headlines: class="text-5xl sm:text-7xl md:text-8xl lg:text-9xl"
+       - Section headlines: class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl"
+       - Sub-headlines: class="text-xl sm:text-2xl md:text-3xl"
+       - Body copy: class="text-base sm:text-lg md:text-xl"
+       - Big stat numbers: class="text-6xl sm:text-7xl md:text-8xl lg:text-9xl"
+       Inline styles using clamp() are acceptable: font-size: clamp(2.25rem, 6vw, 8rem)
+       NEVER use a fixed pixel size > 40px without a clamp() or a responsive class.
+
+    b) SPACING — use responsive padding/margin everywhere.
+       - Section padding: class="py-16 sm:py-24 md:py-32 lg:py-48"
+       - Container padding: class="px-5 sm:px-8 md:px-12 lg:px-20"
+       - Gaps in stacks/grids: class="gap-6 sm:gap-10 md:gap-16"
+
+    c) GRIDS — must collapse to 1 column on mobile.
+       - Two-column: class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16"
+       - Three-column: class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+       - Four-column stat strip: class="grid grid-cols-2 lg:grid-cols-4 gap-6"
+       NEVER write grid-template-columns: repeat(N, 1fr) with N > 1 without a mobile fallback.
+
+    d) IMAGES — full width on mobile, never overflow.
+       - Wrap every <img> in a container with class="w-full" and the image with class="w-full h-auto object-cover".
+       - For aspect-ratio wrappers use Tailwind: class="aspect-video sm:aspect-[16/9] w-full overflow-hidden"
+       - Side-by-side image+text must stack vertically on mobile.
+
+    e) NO HORIZONTAL OVERFLOW. Add to <body> style: overflow-x:hidden; max-width:100vw.
+       Avoid fixed widths > 100vw, avoid negative margins that exceed the viewport on mobile,
+       avoid writing-mode:vertical-rl on mobile (wrap in md:writing-mode-vertical-rl class via inline media query if needed).
+
+    f) HERO heights — never lock heights below md.
+       Use class="min-h-[80vh] md:min-h-screen" not class="h-screen".
+
+    g) MARQUEE / horizontal-scroll bands must keep their content width but the band itself must use overflow-x:hidden so the page doesn't scroll sideways.
+
+    h) TABLES — wrap every <table> in <div class="overflow-x-auto -mx-5 px-5"> so wide tables scroll inside themselves, not the page.
+
+    i) NAV-LIKE vertical sidebar labels — hide on mobile: class="hidden md:block".
+
+    Final check before output: imagine the deck rendered at 360px wide. Every headline must fit, every grid must be one column, every image must not exceed the viewport, no element may scroll horizontally. If any rule above is broken, rewrite that section.
 `;
 
 
