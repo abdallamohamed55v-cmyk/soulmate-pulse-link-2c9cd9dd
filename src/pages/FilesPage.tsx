@@ -771,9 +771,38 @@ const FilesPage = () => {
     }
   }, [input, isGenerating, selectedKind, selectedTemplate, isSlides, slideCount, contentDepth, conversationId, navigate, loadSavedFiles]);
 
-  const handleDownload = useCallback(async (msg: ChatMsg) => {
+  const handleDownload = useCallback(async (msg: ChatMsg, format: "html" | "pptx" = "html") => {
     if (!msg.generationId) return;
     try {
+      // PPTX is only meaningful for slides — render via export-slides-pptx edge function.
+      if (format === "pptx") {
+        let html = msg.htmlPreview || "";
+        if (!html && msg.doc?.kind === "slides") {
+          const { data } = await supabase.from("generated_sites").select("html_compiled, jsx_code").eq("id", msg.generationId).maybeSingle();
+          html = data?.html_compiled || (data?.jsx_code ? buildSiteHtml(data.jsx_code) : "");
+        }
+        if (!html) throw new Error("Slides not available");
+        toast.loading("Building PPTX…", { id: "pptx-export" });
+        const { data, error } = await supabase.functions.invoke("export-slides-pptx", {
+          body: { html, title: msg.doc?.title || "slides" },
+        });
+        toast.dismiss("pptx-export");
+        if (error) throw error;
+        if (!data?.success || !data?.pptx_base64) throw new Error(data?.error || "PPTX export failed");
+        const bin = atob(data.pptx_base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `${msg.doc?.title || "slides"}.pptx`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        toast.success("PPTX downloaded");
+        return;
+      }
+
+      // HTML
       let html = msg.htmlPreview || "";
       if (!html) {
         if (msg.doc?.kind === "slides") {
@@ -792,8 +821,12 @@ const FilesPage = () => {
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
       toast.success("Downloaded");
-    } catch (e: any) { toast.error(e?.message || "Download failed"); }
+    } catch (e: any) {
+      toast.dismiss("pptx-export");
+      toast.error(e?.message || "Download failed");
+    }
   }, []);
+
 
   const openPreview = (html: string, title?: string) => {
     setPreviewHtml(html); setPreviewTitle(title || "Preview"); setPreviewOpen(true);
@@ -1081,13 +1114,43 @@ const FilesPage = () => {
 
                                         <Eye className="h-4 w-4" />
                                       </button>
-                                      <button
-                                        onClick={() => handleDownload(m)}
-                                        className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center"
-                                        aria-label="Download"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                      </button>
+                                      {m.doc?.kind === "slides" ? (
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <button
+                                              className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center"
+                                              aria-label="Download"
+                                            >
+                                              <Download className="h-4 w-4" />
+                                            </button>
+                                          </PopoverTrigger>
+                                          <PopoverContent align="end" className="w-44 p-1.5 rounded-2xl">
+                                            <button
+                                              onClick={() => handleDownload(m, "pptx")}
+                                              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-foreground/5 text-sm text-left"
+                                            >
+                                              <Download className="h-4 w-4" />
+                                              <span>PowerPoint (.pptx)</span>
+                                            </button>
+                                            <button
+                                              onClick={() => handleDownload(m, "html")}
+                                              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-foreground/5 text-sm text-left"
+                                            >
+                                              <Download className="h-4 w-4" />
+                                              <span>Web page (.html)</span>
+                                            </button>
+                                          </PopoverContent>
+                                        </Popover>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleDownload(m, "html")}
+                                          className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center"
+                                          aria-label="Download"
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </button>
+                                      )}
+
                                     </div>
                                   </div>
                                 </div>
