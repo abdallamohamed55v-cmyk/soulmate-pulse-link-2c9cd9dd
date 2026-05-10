@@ -118,32 +118,49 @@ export default function ChatPlusSheet({
               <div className="w-10 h-1.5 rounded-full bg-foreground/30" />
             </div>
 
-            {/* Tile grid — real Megsy site sections */}
+            {/* Tile grid — Camera, Photos, Files */}
             <div className="grid grid-cols-3 gap-2.5 px-4 pt-3 pb-4">
-              <Tile icon={<ImageIcon className="w-[22px] h-[22px]" />} label="Images" accent="text-pink-400" onClick={() => go("/images")} />
-              <Tile icon={<Video className="w-[22px] h-[22px]" />} label="Videos" accent="text-red-400" onClick={() => go("/videos")} />
-              <Tile icon={<Mic className="w-[22px] h-[22px]" />} label="Voice" accent="text-purple-400" onClick={() => go("/voice")} />
-              <Tile icon={<Code2 className="w-[22px] h-[22px]" />} label="Code" accent="text-blue-400" onClick={() => go("/code")} />
-              <Tile icon={<FileText className="w-[22px] h-[22px]" />} label="Files" accent="text-orange-400" onClick={() => go("/files")} />
-              
               <Tile icon={<Camera className="w-[22px] h-[22px]" />} label="Camera" onClick={() => { onCamera(); onClose(); }} />
-              <Tile icon={<FileUp className="w-[22px] h-[22px]" />} label="Upload" onClick={() => { onFiles(); onClose(); }} />
-              <Tile icon={<Sparkles className="w-[22px] h-[22px]" />} label="Plus" accent="text-primary" onClick={() => go("/pricing")} />
+              <Tile icon={<ImageIcon className="w-[22px] h-[22px]" />} label="Photos" onClick={() => { onPhotos(); onClose(); }} />
+              <Tile icon={<FileUp className="w-[22px] h-[22px]" />} label="Files" onClick={() => { onFiles(); onClose(); }} />
             </div>
 
             {/* Rows */}
             <div className="mx-4 rounded-2xl bg-secondary/50 overflow-hidden divide-y divide-border/30">
-              <Row
-                icon={<Globe className="w-[18px] h-[18px]" />}
-                label="Web search"
-                trailing={<span className={`text-[13px] ${searchEnabled ? "text-primary" : ""}`}>{searchEnabled ? "On" : "Off"}</span>}
+              <button
                 onClick={onToggleSearch}
+                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-accent/30 transition-colors"
+              >
+                <Globe className="w-[18px] h-[18px] text-foreground/85" />
+                <span className="flex-1 text-left text-[15px] text-foreground/90">Web search</span>
+                <span
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    searchEnabled ? "bg-primary" : "bg-foreground/20"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      searchEnabled ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </span>
+              </button>
+              <Row
+                icon={<Atom className="w-[18px] h-[18px]" />}
+                label="Model"
+                trailing={<span className="text-[13px]">Lite</span>}
+                onClick={() => go("/settings/model")}
               />
               <Row
-                icon={<Sparkles className="w-[18px] h-[18px]" />}
-                label="Integrations"
-                trailing={<span className="text-[11px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium">PRO</span>}
-                onClick={() => go("/settings/integrations")}
+                icon={<Wrench className="w-[18px] h-[18px]" />}
+                label="Use tools"
+                onClick={() => go("/settings/tools")}
+              />
+              <Row
+                icon={<Lightbulb className="w-[18px] h-[18px]" />}
+                label="Skills"
+                trailing={<span className="text-[13px]">13 enabled</span>}
+                onClick={() => go("/settings/skills")}
               />
             </div>
           </motion.div>
