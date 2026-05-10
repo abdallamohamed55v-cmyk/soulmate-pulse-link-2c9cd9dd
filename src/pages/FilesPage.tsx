@@ -304,20 +304,25 @@ const FilesPage = () => {
   const showTemplates = !!currentKindMeta?.hasTemplates;
   const isSlides = selectedKind === "slides";
 
-  // Load templates (slides = local landing-page registry; others = DDS)
+  // Load templates: slides combine our in-house "premium" + external DDS "standard"
   useEffect(() => {
     (async () => {
       const grouped: Record<string, Template[]> = {};
+      const ddsSlides: Template[] = [];
       try {
         const res = await fetch(`${DDS_BASE}/api/v1/templates`);
         const json = await res.json();
         for (const t of (json.templates || [])) {
-          if (t.type === "slides") continue; // ignore external slide templates
-          (grouped[t.type] = grouped[t.type] || []).push({ ...t, order: t.display_order ?? t.order });
+          const tpl = { ...t, order: t.display_order ?? t.order } as Template;
+          if (t.type === "slides") {
+            ddsSlides.push({ ...tpl, category: "standard" } as any);
+          } else {
+            (grouped[t.type] = grouped[t.type] || []).push(tpl);
+          }
         }
       } catch {}
 
-      grouped.slides = LANDING_TEMPLATES.map((t, i) => ({
+      const premiumSlides: Template[] = LANDING_TEMPLATES.map((t, i) => ({
         type: "slides",
         id: t.id,
         name: t.name,
@@ -328,9 +333,12 @@ const FilesPage = () => {
         order: i,
       } as Template));
 
+      grouped.slides = [...premiumSlides, ...ddsSlides];
+
       setTemplatesByKind(grouped);
     })();
   }, []);
+
 
   const loadSavedFiles = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
