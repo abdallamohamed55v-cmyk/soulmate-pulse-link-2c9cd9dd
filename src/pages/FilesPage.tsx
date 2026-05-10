@@ -352,6 +352,18 @@ async function generateProjectName(prompt: string): Promise<string> {
   return prompt.split(/\s+/).slice(0, 4).join(" ") || "New File";
 }
 
+async function aiSummary(args: {
+  kind: string; title: string; prompt: string;
+  templateName?: string; slideCount?: number; wordCount?: number;
+  fallback: string;
+}): Promise<string> {
+  try {
+    const { data } = await supabase.functions.invoke("summarize-generation", { body: args });
+    if (data?.summary) return String(data.summary);
+  } catch {}
+  return args.fallback;
+}
+
 async function captureThumb(html: string, fileName: string): Promise<string | null> {
   try {
     const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -597,7 +609,12 @@ const FilesPage = () => {
         );
         const title = prompt.slice(0, 80);
         const thumb = await captureThumb(out.html, `file-${convId || out.id}`);
-        const summary = `Created "${title}"`;
+        const summary = await aiSummary({
+          kind: "slides", title, prompt,
+          templateName: selectedTemplate?.name || "",
+          slideCount,
+          fallback: `Created "${title}"`,
+        });
         setMessages(prev => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
@@ -633,7 +650,13 @@ const FilesPage = () => {
         );
         const title = prompt.slice(0, 80);
         const thumb = await captureThumb(out.html, `file-${convId || out.id}`);
-        const summary = `Created "${title}"`;
+        const wordCount = (out.html || "").replace(/<[^>]+>/g, " ").trim().split(/\s+/).length;
+        const summary = await aiSummary({
+          kind: selectedKind, title, prompt,
+          templateName: selectedTemplate?.name || "",
+          wordCount,
+          fallback: `Created "${title}"`,
+        });
         setMessages(prev => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
@@ -688,12 +711,20 @@ const FilesPage = () => {
         thumb = await captureThumb(htmlPreview, `file-${convId || result.id}`);
       }
 
-      // Final summary report
-      const summaryParts: string[] = [];
-      if (doc?.title) summaryParts.push(`Created "${doc.title}"`);
-      if (isSlides && Array.isArray((doc as any).slides)) summaryParts.push(`${(doc as any).slides.length} slides`);
-      if (selectedTemplate?.name) summaryParts.push(`styled with ${selectedTemplate.name}`);
-      const summary = summaryParts.join(" • ") || `Your ${selectedKind} is ready.`;
+      // Final summary — AI-written one-liner that reflects the actual output
+      const slidesArr = isSlides && Array.isArray((doc as any).slides) ? (doc as any).slides : null;
+      const wordCount = htmlPreview ? htmlPreview.replace(/<[^>]+>/g, " ").trim().split(/\s+/).length : 0;
+      const fallback =
+        (doc?.title ? `Created "${doc.title}"` : `Your ${selectedKind} is ready.`) +
+        (slidesArr ? ` • ${slidesArr.length} slides` : "") +
+        (selectedTemplate?.name ? ` • styled with ${selectedTemplate.name}` : "");
+      const summary = await aiSummary({
+        kind: selectedKind, title: doc?.title || "", prompt,
+        templateName: selectedTemplate?.name || "",
+        slideCount: slidesArr ? slidesArr.length : 0,
+        wordCount,
+        fallback,
+      });
 
       setMessages(prev => {
         const copy = [...prev];
