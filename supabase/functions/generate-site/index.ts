@@ -72,26 +72,38 @@ function stripEmojis(html: string): string {
 }
 
 function buildImageQuery(prompt: string): string {
-  const lower = prompt.toLowerCase();
-  const mapped: string[] = [];
-  const pairs: Array<[RegExp, string]> = [
-    [/مصر|egypt|القاهرة|الاهرام|الأهرام|نيل|النيل/, "Egypt Cairo Nile pyramids"],
-    [/سعود|رياض|جدة|saudi|riyadh/, "Saudi Arabia Riyadh architecture"],
-    [/دبي|امارات|الإمارات|dubai|uae/, "Dubai skyline business"],
-    [/تعليم|مدرس|جامعة|طلاب|education|school|university/, "education students classroom"],
-    [/طب|صحة|مستشفى|medical|health|hospital/, "healthcare hospital doctors"],
-    [/عقار|مباني|معمار|real estate|architecture/, "modern architecture real estate"],
-    [/مطعم|اكل|أكل|food|restaurant/, "restaurant food kitchen"],
-    [/موضة|ازياء|أزياء|fashion/, "fashion editorial model"],
-    [/تقنية|ذكاء|ai|technology|software|startup/, "artificial intelligence technology workspace"],
-    [/بيئة|زراعة|طاقة|environment|farm|energy/, "renewable energy nature agriculture"],
-    [/سياحة|سفر|travel|tourism/, "travel destination landscape"],
-    [/مال|بنك|استثمار|finance|bank|investment/, "finance business investment"],
-  ];
-  for (const [re, q] of pairs) if (re.test(lower)) mapped.push(q);
-  const latin = prompt.match(/[a-zA-Z][a-zA-Z\s-]{2,}/g)?.join(" ").trim() || "";
-  const base = [mapped.join(" "), latin].filter(Boolean).join(" ").trim();
-  return (base || "professional editorial documentary").slice(0, 180);
+  // Keep the user's original wording (Arabic or otherwise) — Firecrawl/Google
+  // image search supports multilingual queries far better than our hand-mapped
+  // English bucket. Just trim to a reasonable length.
+  const cleaned = prompt.replace(/\s+/g, " ").trim();
+  return cleaned.slice(0, 180) || "documentary photography";
+}
+
+/** Optional: ask a tiny LLM to convert an Arabic/long brief into 4-6 English
+ * image-search keywords. Cheap (Gemini Flash Lite, ~30 output tokens) and
+ * massively improves Firecrawl image relevance for non-English prompts. */
+async function translateToImageKeywords(prompt: string): Promise<string> {
+  const key = Deno.env.get("OPENROUTER_API_KEY");
+  if (!key) return "";
+  try {
+    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        max_tokens: 40,
+        temperature: 0,
+        messages: [
+          { role: "system", content: "You convert any user brief into 4-6 specific English image-search keywords for finding the most relevant real photos. Include proper nouns (people, places, brands) transliterated to English. Output ONLY the keywords, no quotes, no punctuation other than spaces." },
+          { role: "user", content: prompt.slice(0, 500) },
+        ],
+      }),
+    });
+    if (!r.ok) return "";
+    const j = await r.json();
+    const text = String(j?.choices?.[0]?.message?.content || "").trim();
+    return text.replace(/[\n"]+/g, " ").slice(0, 160);
+  } catch { return ""; }
 }
 
 async function fetchImagesFromFirecrawl(query: string): Promise<Array<{ url: string; alt: string }>> {
@@ -101,7 +113,7 @@ async function fetchImagesFromFirecrawl(query: string): Promise<Array<{ url: str
     const resp = await fetch("https://api.firecrawl.dev/v2/search", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query: `${query} high resolution photo`, limit: 18, sources: ["images"] }),
+      body: JSON.stringify({ query, limit: 18, sources: ["images"] }),
     });
     if (!resp.ok) return [];
     const data = await resp.json();
