@@ -1055,7 +1055,7 @@ const FilesPage = () => {
                               {m.generationId && (
                                 <div className="mt-3 rounded-2xl border border-border/60 bg-card overflow-hidden">
                                   <button
-                                    onClick={() => m.htmlPreview && openPreview(m.htmlPreview, m.doc?.title)}
+                                    onClick={() => handlePreview(m)}
                                     className="block w-full aspect-video bg-muted overflow-hidden"
                                   >
                                     {m.thumbnail ? (
@@ -1073,10 +1073,11 @@ const FilesPage = () => {
                                     </span>
                                     <div className="flex items-center gap-1.5">
                                       <button
-                                        onClick={() => m.htmlPreview && openPreview(m.htmlPreview, m.doc?.title)}
+                                        onClick={() => handlePreview(m)}
                                         className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center"
                                         aria-label="Preview"
                                       >
+
                                         <Eye className="h-4 w-4" />
                                       </button>
                                       <button
