@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Check } from "lucide-react";
+import type { CSSProperties } from "react";
 
 export interface PickerTemplate {
   id: string;
@@ -18,7 +19,7 @@ interface Props {
 }
 
 const TemplatePickerSheet = ({ open, templates, selectedId, onSelect, onClose }: Props) => {
-  const getFallbackStyle = (id: string): React.CSSProperties => {
+  const getFallbackStyle = (id: string): CSSProperties => {
     const palettes: Record<string, string> = {
       "portfolio-3d": "linear-gradient(135deg,#08080c 0%,#28135f 48%,#65f4ff 100%)",
       documentary: "linear-gradient(135deg,#161412 0%,#6d5540 48%,#e6d3b1 100%)",
@@ -66,13 +67,19 @@ const TemplatePickerSheet = ({ open, templates, selectedId, onSelect, onClose }:
                       active ? "border-primary ring-2 ring-primary/30" : "border-border/50 hover:border-foreground/30"
                     }`}
                   >
-                    <div className="w-full aspect-[4/3] bg-gradient-to-br from-muted/40 to-muted overflow-hidden">
+                    <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-muted/40 to-muted overflow-hidden">
+                      <div
+                        className="absolute inset-0 flex items-end p-3 text-xs font-black uppercase tracking-[0.22em] text-white/90"
+                        style={getFallbackStyle(t.id)}
+                      >
+                        <span className="drop-shadow-lg">{t.fallbackLabel || t.name}</span>
+                      </div>
                       {t.preview ? (
                         <img
                           src={t.preview}
                           alt={t.name}
                           loading="lazy"
-                          className="w-full h-full object-cover"
+                          className="relative z-10 w-full h-full object-cover"
                           onError={(e) => {
                             const img = e.currentTarget as HTMLImageElement;
                             img.style.display = "none";
@@ -80,12 +87,6 @@ const TemplatePickerSheet = ({ open, templates, selectedId, onSelect, onClose }:
                           }}
                         />
                       ) : null}
-                      <div
-                        className="absolute inset-0 flex items-end p-3 text-xs font-black uppercase tracking-[0.22em] text-white/90"
-                        style={getFallbackStyle(t.id)}
-                      >
-                        <span className="drop-shadow-lg">{t.fallbackLabel || t.name}</span>
-                      </div>
                     </div>
                     <div className="px-3 py-2.5 flex items-center justify-between">
                       <span className="text-sm font-semibold truncate">{t.name}</span>
