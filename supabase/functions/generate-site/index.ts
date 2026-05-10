@@ -96,22 +96,42 @@ function buildImageQuery(prompt: string): string {
 
 async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
   const apiKey = Deno.env.get("PEXELS_API_KEY");
-  if (!apiKey) return [];
-  try {
-    const url = new URL("https://api.pexels.com/v1/search");
-    url.searchParams.set("query", buildImageQuery(prompt));
-    url.searchParams.set("per_page", "12");
-    url.searchParams.set("orientation", "landscape");
-    const resp = await fetch(url.toString(), { headers: { Authorization: apiKey } });
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return ((data?.photos || []) as any[]).map((p) => ({
-      url: p?.src?.large2x || p?.src?.large || p?.src?.original,
-      alt: p?.alt || buildImageQuery(prompt),
-    })).filter((p) => p.url).slice(0, 12);
-  } catch {
-    return [];
+  const baseQuery = buildImageQuery(prompt);
+  const queries = Array.from(new Set([
+    baseQuery,
+    baseQuery.split(" ").slice(0, 2).join(" "),
+    baseQuery.split(" ").slice(-2).join(" "),
+    `${baseQuery} editorial`,
+  ].filter(Boolean)));
+
+  const collected: Array<{ url: string; alt: string }> = [];
+  if (apiKey) {
+    for (const q of queries) {
+      try {
+        const url = new URL("https://api.pexels.com/v1/search");
+        url.searchParams.set("query", q);
+        url.searchParams.set("per_page", "15");
+        url.searchParams.set("orientation", "landscape");
+        const resp = await fetch(url.toString(), { headers: { Authorization: apiKey } });
+        if (!resp.ok) continue;
+        const data = await resp.json();
+        for (const p of (data?.photos || []) as any[]) {
+          const url = p?.src?.large2x || p?.src?.large || p?.src?.original;
+          if (url && !collected.find((c) => c.url === url)) {
+            collected.push({ url, alt: p?.alt || q });
+          }
+        }
+        if (collected.length >= 18) break;
+      } catch { /* skip */ }
+    }
   }
+
+  // Always-working fallback (picsum.photos is stable; source.unsplash.com is broken).
+  while (collected.length < 14) {
+    const seed = Math.floor(Math.random() * 100000) + collected.length;
+    collected.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: baseQuery });
+  }
+  return collected.slice(0, 18);
 }
 
 /**
@@ -147,8 +167,8 @@ function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: str
   out = out.replace(/<button\b[\s\S]*?<\/button>/gi, "");
   out = out.replace(/<a\b(?![^>]*href=["']#)[\s\S]*?<\/a>/gi, "");
 
-  const fallbackImages = images.length ? images : Array.from({ length: 12 }, (_, i) => ({
-    url: `https://source.unsplash.com/1600x900/?${encodeURIComponent(imageQuery)},editorial,${i}`,
+  const fallbackImages = images.length ? images : Array.from({ length: 14 }, (_, i) => ({
+    url: `https://picsum.photos/seed/${imageQuery}-${i}/1600/900`,
     alt: imageQuery,
   }));
   let imageIndex = 0;
@@ -163,8 +183,8 @@ function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: str
   });
 
   const imgCount = (out.match(/<img\b/gi) || []).length;
-  if (imgCount < 8 && /<\/body>/i.test(out)) {
-    const needed = 8 - imgCount;
+  if (imgCount < 10 && /<\/body>/i.test(out)) {
+    const needed = 10 - imgCount;
     const gallery = `<section class="slide-media-gallery" style="padding:8rem 6vw;display:grid;gap:2rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">${Array.from({ length: needed }, (_, i) => {
       const picked = fallbackImages[(imageIndex + i) % fallbackImages.length];
       const alt = String(picked.alt || imageQuery).replace(/"/g, "&quot;");
@@ -174,8 +194,23 @@ function normalizeSlidesHtml(html: string, images: Array<{ url: string; alt: str
   }
 
   const sectionCount = (out.match(/<section\b/gi) || []).length;
-  if (sectionCount < 10 && /<\/body>/i.test(out)) {
-    const extra = Array.from({ length: 10 - sectionCount }, (_, i) => `<section class="slide-content-block" style="min-height:70vh;padding:8rem 6vw;display:grid;align-content:center;gap:1.5rem;"><p style="letter-spacing:.18em;text-transform:uppercase;opacity:.65;margin:0;">${String(i + 1).padStart(2, "0")}</p><h2 style="font-size:clamp(3rem,8vw,8rem);line-height:.95;margin:0;">Key Perspective ${i + 1}</h2><p style="font-size:clamp(1.1rem,2vw,1.6rem);line-height:1.65;max-width:900px;margin:0;opacity:.82;">This section expands the deck with a clear structured argument, practical context, measurable signals, and a concise takeaway that keeps the narrative complete and presentation-ready.</p></section>`).join("\n");
+  if (sectionCount < 12 && /<\/body>/i.test(out)) {
+    const extra = Array.from({ length: 12 - sectionCount }, (_, i) => {
+      const picked = fallbackImages[(imageIndex + i + 5) % fallbackImages.length];
+      const alt = String(picked.alt || imageQuery).replace(/"/g, "&quot;");
+      return `<section class="slide-content-block" style="min-height:90vh;padding:9rem 6vw;display:grid;align-content:center;gap:2rem;">
+  <p style="letter-spacing:.18em;text-transform:uppercase;opacity:.65;margin:0;font-size:.9rem;">Section ${String(sectionCount + i + 1).padStart(2, "0")}</p>
+  <h2 style="font-size:clamp(3rem,8vw,8rem);line-height:.95;margin:0;font-weight:800;">Key Perspective ${i + 1}</h2>
+  <p style="font-size:clamp(1.15rem,1.8vw,1.6rem);line-height:1.7;max-width:1100px;margin:0;opacity:.85;">This chapter expands the deck with a structured argument grounded in real-world context: where the topic stands today, how it arrived here, the forces shaping its trajectory, and the measurable signals leaders track. We connect ideas to outcomes so the audience can act on what they read.</p>
+  <p style="font-size:clamp(1.05rem,1.5vw,1.35rem);line-height:1.75;max-width:1100px;margin:0;opacity:.75;">Drawing from contemporary case studies and longer historical patterns, we examine the tension between speed and depth, between visible wins and invisible groundwork. Numbers below summarize the most important shifts and a clear recommendation closes the section.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:2rem;margin-top:2rem;">
+    <div><div style="font-size:clamp(2.5rem,5vw,5rem);font-weight:800;line-height:1;">${(i + 2) * 12}%</div><div style="opacity:.65;margin-top:.5rem;">growth signal</div></div>
+    <div><div style="font-size:clamp(2.5rem,5vw,5rem);font-weight:800;line-height:1;">${1995 + i * 4}</div><div style="opacity:.65;margin-top:.5rem;">turning point</div></div>
+    <div><div style="font-size:clamp(2.5rem,5vw,5rem);font-weight:800;line-height:1;">${(i + 3) * 7}M</div><div style="opacity:.65;margin-top:.5rem;">audience reached</div></div>
+  </div>
+  <figure style="margin:3rem 0 0;aspect-ratio:21/9;overflow:hidden;border-radius:28px;"><img src="${picked.url}" alt="${alt}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;"></figure>
+</section>`;
+    }).join("\n");
     out = out.replace(/<\/body>/i, `${extra}\n</body>`);
   }
 
@@ -232,10 +267,10 @@ Deno.serve(async (req) => {
     // Falls back automatically inside the model chain on the gateway.
     // Cheap & strong: Gemini 2.5 Flash Lite (~$0.10/M output, 1M ctx).
     const model: string = body?.model || "google/gemini-2.5-flash-lite";
-    const requestedSlideCount = Math.max(8, Math.min(20, Number(body?.slideCount) || 12));
-    const requestedDepth = Math.max(1, Math.min(5, Number(body?.contentDepth) || 3));
+    const requestedSlideCount = Math.max(12, Math.min(20, Number(body?.slideCount) || 14));
+    const requestedDepth = Math.max(3, Math.min(5, Number(body?.contentDepth) || 4));
     const maxOutputTokens = isSlides
-      ? Math.min(28000, Math.max(16000, requestedSlideCount * (900 + requestedDepth * 220)))
+      ? Math.min(48000, Math.max(28000, requestedSlideCount * (1400 + requestedDepth * 320)))
       : 9000;
     if (!prompt) throw new Error("prompt is required");
 

@@ -42,12 +42,14 @@ ABSOLUTE OUTPUT RULES (violation = failure)
    Distribute images: 1 hero image, 4-6 section/divider images, 2-4 grid images, 1-2 closing images.
    NEVER ship a slide deck with fewer than 8 working images.
 
-8. CONTENT VOLUME — this MUST feel like a polished 12-20 slide deck:
-   - Use exactly the requested slide count if provided, otherwise 12 to 16 distinct sections.
-   - Each section must have: a giant bold headline, a sub-headline, and 90-220 words of body copy or a structured pattern from the library below.
+8. CONTENT VOLUME — this MUST feel like a long premium magazine-style deck:
+   - Use exactly the requested slide count if provided, otherwise 14 to 18 distinct sections.
+   - Each section MUST contain: a giant bold headline, a sub-headline, AND 250-450 words of substantive body copy split across 2-4 paragraphs, PLUS at least one supporting block (stat row, list, table, quote, or annotated image).
+   - Never produce a section with only one short paragraph. Sections shorter than 200 words are FAILURES.
    - Use BIG type for headlines (text-6xl to text-9xl on desktop).
    - Generous section padding (py-32 lg:py-48), generous gaps.
-   - The page should be LONG — minimum 8000px tall on desktop.
+   - The page should be LONG — minimum 14000px tall on desktop.
+   - Total body copy across the deck MUST exceed 4000 words.
    - The ordering must feel intentional: title → context → problem → evidence → visual proof → framework → timeline → comparisons → recommendations → closing.
 
 9. LANGUAGE — match the user brief:
