@@ -1,0 +1,2 @@
+[functions.telegram-templates]
+verify_jwt = false
