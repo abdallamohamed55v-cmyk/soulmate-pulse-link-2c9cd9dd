@@ -136,7 +136,6 @@ Deno.serve(async (req) => {
               html_compiled: "",
               model_used: "google/gemini-2.5-flash",
               status: "generating",
-              source: "generate-document",
             } as any)
             .select("id").single();
           if (insErr || !row) throw new Error(insErr?.message || "Could not create record");
