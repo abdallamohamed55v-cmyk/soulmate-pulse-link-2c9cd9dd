@@ -1396,31 +1396,23 @@ interface ChatInputBoxProps {
 }
 
 const ChatInputBox = ({ value, onChange, onSend, onStop, isGenerating, textareaRef, kindLabel }: ChatInputBoxProps) => {
+  const [attached, setAttached] = useState<AttachedFile[]>([]);
   return (
-    <div
-      className="rounded-[26px] flex items-end gap-2 px-2 py-1.5"
-      style={glassSurface}
-    >
-      <button
-        type="button"
-        onClick={handleAttach}
-        aria-label="Attach"
-        className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-foreground hover:scale-105 active:scale-95 transition"
-        style={glassChip}
-      >
-        <Plus className="h-4 w-4" />
-      </button>
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
-        }}
-        placeholder={`Describe your ${kindLabel.toLowerCase()}...`}
-        rows={1}
-        className="flex-1 resize-none bg-transparent px-2 py-2.5 text-[15px] focus:outline-none max-h-40 placeholder:text-muted-foreground/70"
-      />
+    <div className="rounded-[26px]" style={glassSurface}>
+      <AttachmentChips attached={attached} setAttached={setAttached} />
+      <div className="flex items-end gap-2 px-2 py-1.5">
+        <AttachButton attached={attached} setAttached={setAttached} />
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
+          }}
+          placeholder={`Describe your ${kindLabel.toLowerCase()}...`}
+          rows={1}
+          className="flex-1 resize-none bg-transparent px-2 py-2.5 text-[15px] focus:outline-none max-h-40 placeholder:text-muted-foreground/70"
+        />
       {isGenerating ? (
         <button
           onClick={onStop}
