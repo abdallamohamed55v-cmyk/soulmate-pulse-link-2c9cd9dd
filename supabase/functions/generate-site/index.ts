@@ -96,22 +96,42 @@ function buildImageQuery(prompt: string): string {
 
 async function fetchImageUrls(prompt: string): Promise<Array<{ url: string; alt: string }>> {
   const apiKey = Deno.env.get("PEXELS_API_KEY");
-  if (!apiKey) return [];
-  try {
-    const url = new URL("https://api.pexels.com/v1/search");
-    url.searchParams.set("query", buildImageQuery(prompt));
-    url.searchParams.set("per_page", "12");
-    url.searchParams.set("orientation", "landscape");
-    const resp = await fetch(url.toString(), { headers: { Authorization: apiKey } });
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return ((data?.photos || []) as any[]).map((p) => ({
-      url: p?.src?.large2x || p?.src?.large || p?.src?.original,
-      alt: p?.alt || buildImageQuery(prompt),
-    })).filter((p) => p.url).slice(0, 12);
-  } catch {
-    return [];
+  const baseQuery = buildImageQuery(prompt);
+  const queries = Array.from(new Set([
+    baseQuery,
+    baseQuery.split(" ").slice(0, 2).join(" "),
+    baseQuery.split(" ").slice(-2).join(" "),
+    `${baseQuery} editorial`,
+  ].filter(Boolean)));
+
+  const collected: Array<{ url: string; alt: string }> = [];
+  if (apiKey) {
+    for (const q of queries) {
+      try {
+        const url = new URL("https://api.pexels.com/v1/search");
+        url.searchParams.set("query", q);
+        url.searchParams.set("per_page", "15");
+        url.searchParams.set("orientation", "landscape");
+        const resp = await fetch(url.toString(), { headers: { Authorization: apiKey } });
+        if (!resp.ok) continue;
+        const data = await resp.json();
+        for (const p of (data?.photos || []) as any[]) {
+          const url = p?.src?.large2x || p?.src?.large || p?.src?.original;
+          if (url && !collected.find((c) => c.url === url)) {
+            collected.push({ url, alt: p?.alt || q });
+          }
+        }
+        if (collected.length >= 18) break;
+      } catch { /* skip */ }
+    }
   }
+
+  // Always-working fallback (picsum.photos is stable; source.unsplash.com is broken).
+  while (collected.length < 14) {
+    const seed = Math.floor(Math.random() * 100000) + collected.length;
+    collected.push({ url: `https://picsum.photos/seed/${seed}/1600/900`, alt: baseQuery });
+  }
+  return collected.slice(0, 18);
 }
 
 /**
